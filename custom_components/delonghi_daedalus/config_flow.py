@@ -16,7 +16,6 @@ revoked.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import voluptuous as vol
@@ -29,25 +28,31 @@ from .api import (
     DaedalusConnectionError,
 )
 from .const import (
+    CONF_CLOUD_TELEMETRY,
     CONF_EMAIL,
     CONF_HOST,
     CONF_JWT,
+    CONF_LAN_AUTH_MESSAGE,
     CONF_MACHINE_NAME,
     CONF_PASSWORD,
     CONF_POOL,
     CONF_SERIAL_NUMBER,
+    CONF_SESSION_SECRET,
     CONF_SESSION_TOKEN,
     DOMAIN,
     GIGYA_API_KEYS,
     GIGYA_POOL_EU,
 )
+from .redact import get_logger, mask_host, mask_serial, sanitize_text
+from .redact import mask_email as _mask_email
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 # Gigya errorCode returned when the account exists but has no access to this
 # application's apiKey.  Happens when the account was registered via a
 # different Gigya site (OIDC / OAuth2 redirect) rather than direct login.
 _GIGYA_UNAUTHORIZED_USER = "403005"
+
 
 _USER_SCHEMA = vol.Schema(
     {
@@ -56,6 +61,7 @@ _USER_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST): str,
         vol.Required(CONF_SERIAL_NUMBER): str,
         vol.Optional(CONF_POOL, default=GIGYA_POOL_EU): vol.In(list(GIGYA_API_KEYS.keys())),
+        vol.Optional(CONF_CLOUD_TELEMETRY, default=False): bool,
     }
 )
 
@@ -66,10 +72,11 @@ async def _probe_pools(
     email: str,
     password: str,
     preferred_pool: str,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, str]:
     """Try Gigya login across all pools, preferred pool first.
 
-    Returns (pool, session_token, jwt) for the first pool that succeeds.
+    Returns (pool, session_token, session_secret, jwt) for the first pool
+    that succeeds.
 
     If the preferred pool returns 403005 ("Unauthorized user") the remaining
     pools are tried automatically — this covers accounts registered on a
@@ -88,21 +95,23 @@ async def _probe_pools(
     for pool in pools_ordered:
         api_key = GIGYA_API_KEYS[pool]
         try:
-            session_token, jwt = await api.login_and_get_jwt(email=email, password=password, api_key=api_key)
+            session_token, session_secret, jwt = await api.login_and_get_jwt(
+                email=email, password=password, api_key=api_key
+            )
             if pool != preferred_pool:
                 _LOGGER.info(
                     "Daedalus: preferred pool %s returned 403005, succeeded with %s",
                     preferred_pool,
                     pool,
                 )
-            return pool, session_token, jwt
+            return pool, session_token, session_secret, jwt
         except DaedalusAuthError as exc:
             last_exc = exc
             if _GIGYA_UNAUTHORIZED_USER not in str(exc):
                 raise  # wrong password / rate-limit — no point probing other pools
             _LOGGER.debug("Daedalus: pool %s → 403005, probing next pool", pool)
 
-    raise DaedalusAuthError(f"all_pools: every Gigya pool returned 403005 for {email}") from last_exc
+    raise DaedalusAuthError(f"all_pools: every Gigya pool returned 403005 for {_mask_email(email)}") from last_exc
 
 
 class DaedalusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -127,34 +136,45 @@ class DaedalusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         resolved_pool = preferred_pool
 
         # Unique id = email + SN, so the same account on multiple machines is OK.
+        # The raw pair is PII, but it is persisted in entry.data (CONF_EMAIL)
+        # anyway and .storage is never user-exported; a sha256 fingerprint here
+        # would need a VERSION + async_migrate_entry pass to avoid splitting
+        # old (plaintext) from new (hashed) ids and losing duplicate protection.
+        # Assumed + documented per audit 2026-11-05 (LOW): revisit if entry
+        # data ever stops carrying the email.
         await self.async_set_unique_id(f"{user_input[CONF_EMAIL]}:{serial}")
         self._abort_if_unique_id_configured()
 
         api = self._api_factory()
-        session_token = jwt = ""
+        session_token = session_secret = jwt = ""
         try:
-            resolved_pool, session_token, jwt = await _probe_pools(
+            resolved_pool, session_token, session_secret, jwt = await _probe_pools(
                 api,
                 email=user_input[CONF_EMAIL],
                 password=user_input[CONF_PASSWORD],
                 preferred_pool=preferred_pool,
             )
             lan = await api.connect_lan(host=host, serial_number=serial, jwt=jwt)
+            lan_auth_message = lan.auth_message
             await lan.close()
         except DaedalusAuthError as exc:
+            # host/serial partial-masked: the same identifiers are in
+            # REDACT_KEYS for diagnostics because the support zip can be
+            # uploaded publicly — the log channel follows the same bar
+            # (audit 2026-11-05).
             _LOGGER.warning(
                 "Daedalus login refused (preferred_pool=%s, host=%s): %s",
                 preferred_pool,
-                host,
-                exc,
+                mask_host(host),
+                sanitize_text(exc, host=host),
             )
             errors["base"] = "all_pools_unauthorized" if str(exc).startswith("all_pools:") else "invalid_auth"
         except DaedalusConnectionError as exc:
             _LOGGER.warning(
                 "Daedalus LAN probe failed (host=%s, serial=%s): %s",
-                host,
-                serial,
-                exc,
+                mask_host(host),
+                mask_serial(serial),
+                sanitize_text(exc, host=host),
             )
             errors["base"] = "cannot_connect"
         except Exception:  # noqa: BLE001 — last-resort net so the form still renders
@@ -180,6 +200,9 @@ class DaedalusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_POOL: resolved_pool,
                 CONF_JWT: jwt,
                 CONF_SESSION_TOKEN: session_token,
+                CONF_SESSION_SECRET: session_secret,
+                CONF_LAN_AUTH_MESSAGE: lan_auth_message,
+                CONF_CLOUD_TELEMETRY: bool(user_input.get(CONF_CLOUD_TELEMETRY, False)),
             },
         )
 
@@ -200,14 +223,18 @@ class DaedalusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             api = self._api_factory()
             try:
-                resolved_pool, session_token, jwt = await _probe_pools(
+                resolved_pool, session_token, session_secret, jwt = await _probe_pools(
                     api,
                     email=email,
                     password=password,
                     preferred_pool=preferred_pool,
                 )
             except DaedalusAuthError as exc:
-                _LOGGER.warning("Daedalus reauth refused (preferred_pool=%s): %s", preferred_pool, exc)
+                _LOGGER.warning(
+                    "Daedalus reauth refused (preferred_pool=%s): %s",
+                    preferred_pool,
+                    sanitize_text(exc, host=entry.data.get(CONF_HOST)),
+                )
                 errors["base"] = "all_pools_unauthorized" if str(exc).startswith("all_pools:") else "invalid_auth"
             except Exception:  # noqa: BLE001 — reauth must always render a form
                 _LOGGER.exception("Unexpected error during Daedalus reauth")
@@ -220,6 +247,7 @@ class DaedalusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_POOL: resolved_pool,
                         CONF_JWT: jwt,
                         CONF_SESSION_TOKEN: session_token,
+                        CONF_SESSION_SECRET: session_secret,
                     },
                 )
                 await self.hass.config_entries.async_reload(entry.entry_id)

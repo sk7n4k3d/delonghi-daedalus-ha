@@ -17,7 +17,20 @@ _RESERVED_FRAME_KEYS = frozenset({"Message", "ConnectionId", "RequestId"})
 
 
 class LanProtocolError(RuntimeError):
-    """Raised for malformed / rejected LAN WS frames."""
+    """Raised for malformed LAN WS frames (bad JSON, missing fields).
+
+    Malformed does NOT mean rejected: a booting/upgrade-ing machine or a
+    non-Daedalus service answering on port 443 produces these. Callers must
+    treat them as transient — see :class:`LanAuthRejectedError`.
+    """
+
+
+class LanAuthRejectedError(LanProtocolError):
+    """The machine PARSED our frame and explicitly answered ``Response != OK``.
+
+    Only this (not a garbled reply) proves the credentials were seen and
+    refused — it is the sole legitimate trigger for an auth escalation.
+    """
 
 
 def build_lan_ws_url(host: str) -> str:
@@ -63,20 +76,35 @@ def validate_lan_host(host: str) -> str:
     return host
 
 
-def build_auth_frame(*, serial_number: str, jwt: str) -> str:
-    """Serialize the initial AUTH frame expected by the machine."""
+def build_auth_frame(*, serial_number: str, jwt: str, message: str = "AUTH") -> str:
+    """Serialize the initial AUTH frame expected by the machine.
+
+    `message` is the frame verb: most firmwares expect ``AUTH``, but some
+    Eletta Ultra units only accept lowercase ``auth`` (issue #18). The
+    caller (`api.connect_lan`) owns the fallback between the two.
+    """
     return json.dumps(
-        {"Message": "AUTH", "SerialNo": serial_number, "AuthToken": jwt},
+        {"Message": message, "SerialNo": serial_number, "AuthToken": jwt},
         separators=(",", ":"),
     )
 
 
 def parse_auth_response(payload: dict[str, Any]) -> int:
-    """Return `ConnectionId` from a successful AUTH response."""
+    """Return `ConnectionId` from a successful AUTH response.
+
+    Raises :class:`LanAuthRejectedError` only when the machine answered a
+    parsable object with ``Response != "OK"`` — a proven credential refusal.
+    A well-formed answer without a numeric ``ConnectionId`` is a protocol
+    anomaly (firmware mid-boot, unexpected service), not a rejection, and
+    stays a plain :class:`LanProtocolError` (audit 2026-11-05).
+    """
     response = payload.get("Response")
     if response != "OK":
         reason = payload.get("Reason") or payload.get("Error") or response
-        raise LanProtocolError(f"LAN AUTH rejected: {reason}")
+        # Reason is machine-controlled free text (can echo the serial —
+        # audit #18 G2): hard-cap its length; the serial itself is scrubbed
+        # by sanitize_text(serial=…) at the api.py call sites.
+        raise LanAuthRejectedError(f"LAN AUTH rejected: {str(reason)[:120]}")
     connection_id = payload.get("ConnectionId")
     if not isinstance(connection_id, int):
         raise LanProtocolError("LAN AUTH response missing numeric ConnectionId")
