@@ -4,6 +4,16 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
+## [0.4.5] — 2026-11-18
+
+### Fixed
+- **La connexion cloud MQTT-over-WebSocket offre enfin les sous-protocoles
+  MQTT** (`Sec-WebSocket-Protocol: mqttv5, mqtt`) : AWS IoT (port 443)
+  répond HTTP 426 à toute montée en WebSocket qui ne les propose pas, ce
+  qui rendait tous les capteurs cloud indisponibles même avec la télémétrie
+  activée (#18, diagnostics mimasek71 en 0.4.4). Un test de régression
+  imite la porte ATS : une montée sans sous-protocole est refusée 426.
+
 ## [0.4.4] — 2026-11-18
 
 ### Fixed
