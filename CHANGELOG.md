@@ -4,6 +4,21 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
+## [0.4.3] — 2026-11-18
+
+### Added
+- **Options après installation** : la télémétrie cloud se bascule désormais
+  via Configuration → intégration → Options (recharge automatique de
+  l'entrée). Auparavant il fallait supprimer et réinstaller l'intégration
+  pour l'activer (#18, stivxgamer).
+
+### Fixed
+- **Le fetch cloud ne bloque plus le refresh LAN** : la lecture des shadows
+  tourne en tâche de fond (une à la fois, anti-recouvrement) ; un broker
+  injoignable ne retarde plus l'état LAN de 75 s à chaque cycle.
+- Clé de traduction morte `invalid_host` retirée ; `strings.json` ajouté
+  (parité hassfest avec `translations/en.json`).
+
 ## [0.4.2] — 2026-11-18
 
 ### Fixed
