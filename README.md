@@ -4,9 +4,11 @@ Home Assistant custom integration for **modern De'Longhi machines** that ship th
 **My Coffee Lounge** app (package `com.delonghigroup.daedalus`) — most notably
 the **Eletta Ultra**.
 
-> ⚠️ **Status: alpha / experimental.** Auth + LAN handshake work, brewing commands
-> are not yet decoded. Only useful right now if you can help capture an MITM trace
-> of the official app — see [issue #18 on the upstream repo](https://github.com/sk7n4k3d/delonghi-ha/issues/18).
+> **Status: beta.** Monitoring works end to end — over the LAN socket and, since
+> 0.4.0, through optional read-only cloud telemetry (~77 mapped shadow fields:
+> state, alarms, profiles, counters, firmware versions). Brewing commands are
+> still not decoded; help wanted via
+> [issue #18 on the upstream repo](https://github.com/sk7n4k3d/delonghi-ha/issues/18).
 
 This integration is the **Daedalus stack** counterpart to
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha) (which targets the older
@@ -29,9 +31,7 @@ the upstream `delonghi-ha` instead.
 1. In HACS → **Integrations** → ⋮ → **Custom repositories**
 2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as **Integration**
 3. Find **De'Longhi My Coffee Lounge (Daedalus)** in the list, install
-4. Tick **"Show beta versions"** and pick the latest `vX.Y.Z-alpha.N` or
-   `vX.Y.Z-beta.N` — the integration is pre-alpha right now and only ships
-   prereleases until brewing commands are decoded
+4. Pick the latest release (stable versions ship since 0.4.0)
 5. Restart Home Assistant
 6. **Settings → Devices & Services → Add Integration → De'Longhi My Coffee Lounge**
 
@@ -66,15 +66,21 @@ password again on the rare occasion the session token is revoked.
 
 - ✅ Gigya login + JWT retrieval (auto-probe across pools)
 - ✅ LAN WebSocket handshake (`/ws/lan2lan`) with AUTH frame
-- ✅ HA reauth flow + diagnostics
+- ✅ HA reauth flow + diagnostics (JWT / session token / email / serial scrubbed)
 - ✅ Connection-state binary sensor + LAN ID / SN / IP diagnostic sensors
+- ✅ **Cloud telemetry (opt-in, read-only)** since 0.4.0: AWS IoT device shadows
+  (`MachineStatus`, `MachineCapabilities`) over MQTT 5, ~77 mapped fields as
+  sensors/binary sensors (state, alarms, user profiles, coffee temperatures,
+  grinder/hopper, firmware versions), EN+FR labels, example Lovelace card
+  upstream at `docs/daedalus-cloud-card.yaml`. Works even when the machine is
+  off the LAN; never exposes `BlePassCode` / `MAC` / `SN`.
 
 ## What does NOT work yet
 
 - ❌ Brewing commands (need an MITM trace of the official app to decode the
   `Message` catalog — help wanted, see upstream issue #18)
-- ❌ Cloud `/devices` discovery (you must manually enter the SN + IP)
-- ❌ AWS IoT MQTT shadow polling for offline machines (LAN only for now)
+- ❌ Cloud `/devices` auto-discovery (the serial + IP are entered manually;
+  the cloud directory is only used internally to resolve the shadow thing name)
 
 ## Source of truth
 

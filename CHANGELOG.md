@@ -1,0 +1,61 @@
+# Changelog
+
+Packaging mirror of `custom_components/delonghi_daedalus/` from
+[`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
+upstream; the Daedalus entries are reproduced here for HACS.
+
+## [0.4.2] — 2026-11-18
+
+### Fixed
+- **Connexion cloud Eletta Ultra (#18, mimasek71)** : l'annuaire REST
+  `/devices` utilisait un stage mort (HTTP 403) sans le header
+  `source: mycoffeelounge` — basculé sur le stage qui répond, header
+  ajouté, l'ancien stage gardé en fallback ; parsing des réponses groupées
+  `ownedByMe`/`sharedToMe`.
+- **MQTT shadow** : le broker ferme les connexions MQTT 3.1.1 à la
+  authorizer custom — la connexion « app-style » (MQTT 5, path
+  `/mqtt?x-amz-customauthorizer-name=dlg-prod-token-authorizer`, username
+  de l'authorizer, JWT en password, client-id `dlg-appliance-kit-android-*`)
+  est tentée en premier, les deux spellings 3.1.1 restent fallback. Codec
+  MQTT 5 complet (sections Properties au bon ordre, spec §3.3.2), budget de
+  connexion borné à 30 s, timeouts REST qui jouent enfin le fallback de
+  stage.
+
+## [0.4.1] — 2026-11-14
+
+### Changed
+- **Alias exacts d'après le dump brut de mimasek71 (#18)** : les noms réels
+  (`Status`, `CurrMode`, `Filter`, `Clean`, `NoCoffee`, `Waste`,
+  `FWUIVersion`, `Granulometries`, `SoundEnable`, `EnergySavingMode`,
+  `DrinkClusters`, `Grinder`, `Hopper`, `GFXVersion`, `DrainWater`…)
+  remplacent les alias devinés, conservés en secours pour les autres
+  modèles.
+- Nouveaux champs mappés : description d'étape, firmware Wi-Fi, version
+  agent cloud, modèle carte mère, profils utilisateur (nombre + icônes),
+  températures café, extinction auto, `accessories.None`/`Water` et
+  `peripherals.TankPresence` (alias en chemin complet pour lever
+  l'ambiguïté avec `alarms.TankPresence`).
+
+### Security
+- Les clés `BlePassCode` (code d'appairage BLE), `MAC` et `SN` ne sont
+  **jamais** exposées en entités — le repli brut les aurait persistées dans
+  la base HA et les diagnostics exportés.
+
+## [0.4.0] — 2026-11-14
+
+### Added
+- **Snapshot terrain Eletta Ultra intégré (mimasek71, #18)** :
+  - `cloud_keys.py` : table de 77 champs cloud connus (état, alarmes,
+    périphériques, accessoires, capacités) → noms lisibles traduits EN/FR.
+    Les champs inconnus gardent le repli brut `Cloud <clé>`.
+  - Les champs booléens mappés deviennent des `binary_sensor` (alarmes en
+    `device_class=problem` : on = problème) au lieu de capteurs texte
+    `true`/`false`.
+  - Le shadow `MachineCapabilities` est désormais exposé (capteurs
+    Diagnostic) — il était récupéré mais jeté depuis la 0.3.0.
+  - Carte Lovelace compacte d'exemple : `docs/daedalus-cloud-card.yaml`
+    (repo amont).
+- **Télémétrie cloud opt-in** (`CONF_CLOUD_TELEMETRY`) : lecture des shadows
+  AWS `MachineStatus` / `MachineCapabilities` via REST + MQTT, en plus du
+  chemin LAN ; toute erreur cloud se dégrade en `cloud_error`, le LAN
+  n'est jamais affecté.

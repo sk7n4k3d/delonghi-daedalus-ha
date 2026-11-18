@@ -1,9 +1,9 @@
 # De'Longhi My Coffee Lounge (Daedalus)
 
-⚠️ **Pre-alpha** — auth + LAN handshake work, brewing not yet decoded. Use only
-if you can help capture an MITM trace of the official app, otherwise install
-the upstream [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha) for the
-older Coffee Link stack.
+**Beta** — monitoring works end to end over the LAN socket and via optional
+read-only cloud telemetry (~77 mapped shadow fields). Brewing is not yet
+decoded. For the older **Coffee Link** machines, install the upstream
+[`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha) instead.
 
 For the **Eletta Ultra** and other modern machines on the **My Coffee Lounge**
 app (package `com.delonghigroup.daedalus`).
