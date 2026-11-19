@@ -75,6 +75,17 @@ password again on the rare occasion the session token is revoked.
   upstream at `docs/daedalus-cloud-card.yaml`. Works even when the machine is
   off the LAN; never exposes `BlePassCode` / `MAC` / `SN`.
 
+## Verified models
+
+| Machine | Model id | Monitoring | Commands | Tested with |
+|---|---|---|---|---|
+| Eletta Ultra | — | ✅ | ❌ (not decoded yet) | maintainer |
+| PrimaDonna Aromatic | ECAM63070 | ✅ (45 sensors + 40 binary sensors, LAN handshake, state matches) | not tested | Daedalus 0.4.7, HA Core 2026.11.1, EU owner account — thanks @numanx11 ([#55](https://github.com/sk7n4k3d/delonghi-ha/issues/55)) |
+
+Known quirk: on some machines the `Languages` sensor value exceeds Home
+Assistant's 255-character state limit. Cosmetic only; a truncation fix is
+planned.
+
 ## What does NOT work yet
 
 - ❌ Brewing commands (need an MITM trace of the official app to decode the
