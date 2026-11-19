@@ -26,14 +26,24 @@ integrations / repos.
 If your machine is on Coffee Link don't install this integration — install
 the upstream `delonghi-ha` instead.
 
-## Installation (HACS)
+## Installation
+
+### Home Assistant 2026.11 and later
+
+1. Go to **Settings → Marketplace** and connect a GitHub account to add a custom repository.
+2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as an **Integration** custom repository.
+3. Open **De'Longhi My Coffee Lounge (Daedalus)** and install the latest stable release.
+4. Open setup from Marketplace. Restart Home Assistant after an upgrade.
+
+### Earlier Home Assistant versions with HACS
 
 1. In HACS → **Integrations** → ⋮ → **Custom repositories**
-2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as **Integration**
-3. Find **De'Longhi My Coffee Lounge (Daedalus)** in the list, install
-4. Pick the latest release (stable versions ship since 0.4.0)
-5. Restart Home Assistant
-6. **Settings → Devices & Services → Add Integration → De'Longhi My Coffee Lounge**
+2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as an **Integration** custom repository.
+3. Download the latest stable release of **De'Longhi My Coffee Lounge (Daedalus)**.
+4. Restart Home Assistant.
+5. Go to **Settings → Devices & Services → Add Integration** and select **De'Longhi My Coffee Lounge**.
+
+If you install manually, download `delonghi_daedalus.zip` from the [mirror releases](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases). Extract it into `custom_components/delonghi_daedalus` so that `manifest.json` is directly inside that folder. On a manual upgrade, replace that component folder with a clean extraction and restart Home Assistant.
 
 ## Configuration
 
@@ -98,7 +108,7 @@ planned.
 The integration code lives in the upstream
 [`delonghi-ha` monorepo](https://github.com/sk7n4k3d/delonghi-ha) under
 `custom_components/delonghi_daedalus/`. This repo is **a packaging mirror** for
-HACS distribution — releases here are cut from the upstream `master` branch.
+HACS distribution. See the [mirror release process](docs/releasing.md).
 
 Open issues, PRs, and contribute on the upstream repo.
 

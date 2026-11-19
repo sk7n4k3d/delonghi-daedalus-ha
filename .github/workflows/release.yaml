@@ -19,46 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      # Same guards as upstream delonghi-ha release.yaml (issue #10 / #52):
-      # a tag that disagrees with the manifest fails loudly instead of
-      # shipping a quiet lie, and the published zip must carry the version
-      # we just validated.
-      - name: Verify tag matches manifest.json version
+      - name: Build and verify release ZIP
         env:
           TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          MANIFEST_VERSION=$(jq -r .version custom_components/delonghi_daedalus/manifest.json)
-          EXPECTED_TAG="v${MANIFEST_VERSION}"
-          echo "manifest.json version : ${MANIFEST_VERSION}"
-          echo "git tag               : ${TAG}"
-          if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
-            echo "::error::tag '${TAG}' does not match manifest version '${MANIFEST_VERSION}' (expected '${EXPECTED_TAG}'). Bump manifest.json before tagging." >&2
-            exit 1
-          fi
-          echo "tag and manifest agree on ${MANIFEST_VERSION}"
-
-      - name: Build release zip
-        run: |
-          cd custom_components/delonghi_daedalus
-          zip -r ../../delonghi_daedalus.zip .
-
-      - name: Verify zip carries the expected manifest version
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/zipverify
-          unzip -o delonghi_daedalus.zip -d /tmp/zipverify > /dev/null
-          ZIP_VERSION=$(jq -r .version /tmp/zipverify/manifest.json)
-          EXPECTED_TAG="v${ZIP_VERSION}"
-          echo "zipped manifest.json version : ${ZIP_VERSION}"
-          echo "git tag                      : ${TAG}"
-          if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
-            echo "::error::zip manifest version '${ZIP_VERSION}' does not match tag '${TAG}'." >&2
-            exit 1
-          fi
-          rm -rf /tmp/zipverify
+        run: scripts/package-release.sh "$TAG"
 
       - name: Detect prerelease from tag
         id: prerelease

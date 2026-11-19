@@ -22,6 +22,6 @@ jobs:
       - uses: hacs/action@d556e736723344f83838d08488c983a15381059a  # 22.5.0
         with:
           category: integration
-          # `brands` ignored until delonghi_daedalus is registered in
-          # home-assistant/brands. Pre-alpha repo, deferred.
-          ignore: brands
+          # The current unbranded release needs the exception. With local
+          # branding, let the official action validate the icon.
+          ignore: ${{ hashFiles('custom_components/delonghi_daedalus/brand/icon.png') == '' && 'brands' || '' }}
