@@ -20,6 +20,7 @@ trap 'rm -rf "$temporary"' EXIT
 # Archive the commit, so local test output cannot enter the asset.
 git -C "$repo" archive --format=tar "$ref" -- "custom_components/$component" > "$temporary/component.tar"
 git -C "$repo" show "$ref:hacs.json" > "$temporary/hacs.json"
+git -C "$repo" show "$ref:LICENSE" > "$temporary/LICENSE"
 python3 - "$temporary" "$tag" "$component" "$package" <<'PYZIP'
 import json
 import sys
@@ -48,6 +49,11 @@ with tarfile.open(directory / "component.tar") as tree, zipfile.ZipFile(director
         info = zipfile.ZipInfo(filename.as_posix(), timestamp)
         info.external_attr = (0o100000 | member.mode) << 16
         released.writestr(info, tree.extractfile(member).read(), compress_type=zipfile.ZIP_DEFLATED)
+    # Use the same Git archive timestamp as the component members.
+    manifest_mtime = tree.getmember((prefix / "manifest.json").as_posix()).mtime
+    notice = zipfile.ZipInfo("LICENSE", datetime.fromtimestamp(manifest_mtime, UTC).timetuple()[:6])
+    notice.external_attr = 0o100644 << 16
+    released.writestr(notice, (directory / "LICENSE").read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
 
 with zipfile.ZipFile(directory / package) as released:
     if corrupt := released.testzip():

@@ -4,6 +4,23 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
+## [0.5.0]
+
+- Select your machine during setup. Confirm its LAN address and approve its
+  certificate, or enable cloud telemetry to monitor without local access.
+- Existing LAN installations need to approve the certificate in **Reconfigure**
+  after upgrading. Retained entities keep their IDs and settings. Replace
+  references to the removed cloud LAN address sensor with the dedicated **LAN IP
+  address** diagnostic entity.
+- Each appliance gets a Home Assistant device page and improved connection
+  recovery and diagnostics. Long language lists fit Home Assistant's state
+  limit, and Romanian translations are included.
+- With cloud telemetry enabled, compatible machines expose read-only lifetime
+  counts for brewing, stopped brews and brewing errors.
+- Adds opt-in warm-up on the verified EU PrimaDonna Aromatic ECAM63070 firmware.
+
+[Setup and upgrade guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-setup.md)
+
 ## [0.4.7] — 2026-11-18
 
 ### Fixed / Added
