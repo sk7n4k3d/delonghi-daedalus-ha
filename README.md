@@ -28,6 +28,8 @@ the upstream `delonghi-ha` instead.
 
 ## Installation
 
+Use **Home Assistant 2024.11.0 or later** for Marketplace, HACS, and manual installations.
+
 ### Home Assistant 2026.11 and later
 
 1. Go to **Settings → Marketplace** and connect a GitHub account to add a custom repository.
@@ -35,7 +37,7 @@ the upstream `delonghi-ha` instead.
 3. Open **De'Longhi My Coffee Lounge (Daedalus)** and install the latest stable release.
 4. Open setup from Marketplace. Restart Home Assistant after an upgrade.
 
-### Earlier Home Assistant versions with HACS
+### Home Assistant 2024.11 through 2026.10 with HACS
 
 1. In HACS → **Integrations** → ⋮ → **Custom repositories**
 2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as an **Integration** custom repository.
