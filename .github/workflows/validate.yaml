@@ -41,3 +41,8 @@ jobs:
                   print(f'FAIL {f}: {e}')
           sys.exit(1 if errors else 0)
           "
+
+      - name: Verify the release ZIP
+        run: |
+          VERSION="$(python -c 'import json; print(json.load(open("custom_components/delonghi_daedalus/manifest.json"))["version"])')"
+          scripts/package-release.sh "v$VERSION" "$RUNNER_TEMP"

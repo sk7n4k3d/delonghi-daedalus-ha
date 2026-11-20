@@ -58,6 +58,8 @@ CONF_PASSWORD: Final = "password"  # noqa: S105 — config_entry key, not a secr
 CONF_HOST: Final = "host"
 CONF_SERIAL_NUMBER: Final = "serial_number"
 CONF_MACHINE_NAME: Final = "machine_name"
+CONF_MODEL: Final = "model"
+CONF_LAN_TLS_FINGERPRINT: Final = "lan_tls_fingerprint"
 CONF_POOL: Final = "pool"
 CONF_JWT: Final = "jwt"  # noqa: S105
 CONF_SESSION_TOKEN: Final = "session_token"  # noqa: S105
@@ -66,6 +68,8 @@ CONF_SESSION_SECRET: Final = "session_secret"  # noqa: S105
 CONF_LAN_AUTH_MESSAGE: Final = "lan_auth_message"
 # Opt-in read-only cloud telemetry (AWS IoT shadow over MQTT/WSS).
 CONF_CLOUD_TELEMETRY: Final = "cloud_telemetry"
+CONF_AROMATIC_WARMUP: Final = "aromatic_warmup"
+CONF_AROMATIC_WARMUP_PENDING: Final = "aromatic_warmup_pending"
 
 DEFAULT_UPDATE_INTERVAL_SECONDS: Final = 30
 # Cloud shadows change slowly and every fetch is a full MQTT session;
@@ -77,3 +81,15 @@ CLOUD_POLL_SECONDS: Final = 120
 # DEFAULT_UPDATE_INTERVAL_SECONDS: the hop runs detached from the refresh
 # (finding 9), so the LAN snapshot never waits on it.
 CLOUD_FETCH_TIMEOUT_SECONDS: Final = 75
+
+
+# Statistics use a separate MQTT session so shadow authorization or timeouts
+# cannot interfere with MachineStatus and MachineCapabilities.
+BREWING_STATISTICS_POLL_SECONDS: Final = 15 * 60
+BREWING_STATISTICS_RETRY_SECONDS: Final = 60 * 60
+BREWING_STATISTICS_FETCH_TIMEOUT_SECONDS: Final = 10
+BREWING_STATISTICS_KEYS: Final = {
+    "Brew": "brew_count",
+    "Stopped": "stopped_brew_count",
+    "InError": "brewing_error_count",
+}

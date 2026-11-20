@@ -8,7 +8,8 @@ Two hops, both JWT-authenticated:
    machine. The directory answers grouped under ``ownedByMe`` /
    ``sharedToMe``.
 2. AWS IoT Core device shadows over MQTT 5 / WebSocket (WSS:443): read the
-   named shadows ``MachineStatus`` and ``MachineCapabilities``. Read-only —
+   named shadows ``MachineStatus``, ``MachineCapabilities``, and optional
+   ``BrewingStatisticsTotals``. Read-only —
    the only publishes are the standard ``$aws/things/.../get`` requests,
    which only ask the shadow service for the stored document.
 
@@ -23,13 +24,10 @@ and are kept as fallbacks only.
 
 EXPERIMENTAL and opt-in (``CONF_CLOUD_TELEMETRY``): the wire details were
 described from a single contributor's Eletta Ultra (My Coffee Lounge
-1.5.0, EU pool). Every failure here degrades to a ``cloud_error`` string
-in the coordinator data — the LAN path is never affected.
+1.5.0, EU pool). Cloud failures are reported separately from the LAN path.
 
-The MQTT codec below is a deliberately minimal subset (CONNECT / SUBSCRIBE
-/ PUBLISH QoS0 / CONNACK / SUBACK) speaking both MQTT 3.1.1 and MQTT 5 —
-the only MQTT 5 addition is the empty Properties section the newer level
-requires. Enough for a shadow read, nothing else.
+The MQTT codec supports the control packets used by the telemetry reader
+and the MQTT 5 publish properties used by the separate warm-up action.
 """
 
 from __future__ import annotations
@@ -40,6 +38,7 @@ import json
 import re
 import secrets
 import time
+from dataclasses import dataclass
 from typing import Any
 
 import aiohttp
@@ -50,12 +49,16 @@ from .const import (
     AWS_REST_BASE_URL_LEGACY_PROD,
     AWS_REST_BASE_URL_PROD,
     AWS_REST_SOURCE_HEADER,
+    BREWING_STATISTICS_KEYS,
+    CLOUD_POLL_SECONDS,
 )
+from .lan_protocol import LanProtocolError, validate_lan_host
 from .redact import get_logger, mask_serial, sanitize_text
 
 _LOGGER = get_logger(__name__)
 
 SHADOWS: tuple[str, ...] = ("MachineStatus", "MachineCapabilities")
+_BREWING_STATISTICS_SHADOW = "BrewingStatisticsTotals"
 
 _CONNECT = 1
 _CONNACK = 2
@@ -63,8 +66,8 @@ _PUBLISH = 3
 _SUBSCRIBE = 8
 _SUBACK = 9
 
-# MQTT 5 inserts a Properties section where 3.1.1 has nothing; this client
-# never sets a property, so every one of them is the single zero byte.
+# MQTT 5 inserts a Properties section where 3.1.1 has nothing. The empty
+# section is encoded as a single zero byte.
 _MQTT5_NO_PROPERTIES = b"\x00"
 
 _REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)
@@ -74,11 +77,110 @@ class CloudTelemetryError(RuntimeError):
     """Any failure on the cloud path. Callers must treat it as optional."""
 
 
+class CloudMachineNotFound(CloudTelemetryError):
+    """The directory did not confirm one machine for this serial."""
+
+
+@dataclass(frozen=True)
+class CloudState:
+    """Shadows returned for this fetch and a reason for withholding status."""
+
+    shadows: dict[str, dict[str, Any]]
+    machine_name: str
+    status_error: str | None = None
+
+
 # --------------------------------------------------------------------- REST --
 
 # The live /devices answer groups the machines by ownership (issue #18,
 # mimasek71's capture); older captures were a bare list or a wrapper dict.
 _GROUPED_DEVICE_KEYS: tuple[str, ...] = ("ownedByMe", "sharedToMe")
+_DIRECTORY_SERIAL_KEYS = ("serialNumber", "serial_number", "serial", "serialNo", "SerialNo")
+_DIRECTORY_NAME_KEYS = ("machineName", "machine_name", "thingName", "thing_name", "name")
+_DIRECTORY_MODEL_RE = re.compile(r"(?:ECAM|EXAM)[0-9]{3}\.?[0-9]{2}[A-Z]{0,3}", re.ASCII | re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class DirectoryMachine:
+    """Identity fields copied from one authenticated account directory record."""
+
+    serial: str
+    thing_name: str | None
+    model: str | None
+
+
+def _directory_records(payload: Any) -> list[Any]:
+    if isinstance(payload, dict):
+        grouped = [key for key in _GROUPED_DEVICE_KEYS if isinstance(payload.get(key), list)]
+        if grouped:
+            return [device for key in grouped for device in payload[key]]
+        for wrapper in ("devices", "items", "result", "data"):
+            inner = payload.get(wrapper)
+            if isinstance(inner, list):
+                return inner
+    if isinstance(payload, list):
+        return payload
+    raise CloudTelemetryError("/devices response was neither a list nor a known wrapper")
+
+
+def machine_model_code(value: object) -> str | None:
+    """Validate the De'Longhi product code used in device metadata."""
+    model = value.strip().upper() if isinstance(value, str) else ""
+    return model if _DIRECTORY_MODEL_RE.fullmatch(model) else None
+
+
+def _directory_machines(payload: Any) -> list[DirectoryMachine]:
+    records = _directory_records(payload)
+    machines: dict[str, DirectoryMachine] = {}
+    ambiguous: set[str] = set()
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        serial = next(
+            (
+                str(value).strip()
+                for field in _DIRECTORY_SERIAL_KEYS
+                if isinstance(value := record.get(field), (str, int))
+                and not isinstance(value, bool)
+                and re.fullmatch(r"[A-Za-z0-9._-]{1,128}", str(value).strip())
+            ),
+            None,
+        )
+        if serial is None:
+            continue
+        thing = next(
+            (
+                value
+                for field in _DIRECTORY_NAME_KEYS
+                if isinstance(value := record.get(field), str) and _THING_NAME_RE.fullmatch(value)
+            ),
+            None,
+        )
+        model = machine_model_code(record.get("machineModel"))
+        if model is not None and model.casefold() in (
+            serial.casefold(),
+            (thing or "").casefold(),
+        ):
+            model = None
+        key = serial.casefold()
+        machine = DirectoryMachine(serial, thing, model)
+        existing = machines.get(key)
+        if existing is None:
+            machines[key] = machine
+        elif existing.thing_name != machine.thing_name:
+            ambiguous.add(key)
+    result = [machine for key, machine in machines.items() if key not in ambiguous]
+    if records and not result:
+        raise CloudTelemetryError("/devices response contained no usable machine records")
+    return result
+
+
+async def list_machines(session: aiohttp.ClientSession, *, jwt: str) -> list[DirectoryMachine]:
+    """List owner and shared machines from the current app directory."""
+    payload = await _fetch_devices(
+        session, url=f"{AWS_REST_BASE_URL_PROD.rstrip('/')}/devices", jwt=jwt, allow_redirects=False
+    )
+    return _directory_machines(payload)
 
 
 def extract_machine_name(payload: Any, serial: str) -> str:
@@ -90,20 +192,22 @@ def extract_machine_name(payload: Any, serial: str) -> str:
     (``devices`` / ``items`` / ``result`` / ``data``), and matches the serial
     case-insensitively against any key containing ``serial``.
     """
-    if isinstance(payload, dict):
-        grouped = [key for key in _GROUPED_DEVICE_KEYS if isinstance(payload.get(key), list)]
-        if grouped:
-            payload = [device for key in grouped for device in payload[key]]
-        else:
-            for wrapper in ("devices", "items", "result", "data"):
-                inner = payload.get(wrapper)
-                if isinstance(inner, list):
-                    payload = inner
-                    break
-    if not isinstance(payload, list):
-        raise CloudTelemetryError("/devices response was neither a list nor a known wrapper")
+    _, name = _extract_machine_record(payload, serial)
+    return name
+
+
+def _directory_presence(device: dict[str, Any]) -> str | None:
+    """Normalize presence, treating a malformed field as unknown."""
+    presence = device.get("status")
+    if presence is None:
+        return None
+    return presence.strip().upper() if isinstance(presence, str) else ""
+
+
+def _extract_machine_record(payload: Any, serial: str) -> tuple[dict[str, Any], str]:
     target = serial.strip().lower()
-    for device in payload:
+    match = None
+    for device in _directory_records(payload):
         if not isinstance(device, dict):
             continue
         serials = {
@@ -115,15 +219,21 @@ def extract_machine_name(payload: Any, serial: str) -> str:
             for key in ("machineName", "machine_name", "thingName", "thing_name", "name"):
                 value = device.get(key)
                 if isinstance(value, str) and value:
-                    return value
-    raise CloudTelemetryError(f"serial {mask_serial(serial)} not found in /devices response")
+                    if match is not None and match[1] != value:
+                        raise CloudMachineNotFound(f"serial {mask_serial(serial)} is ambiguous in /devices response")
+                    if match is None or _directory_presence(device) == "OFFLINE":
+                        match = (device, value)
+                    break
+    if match is None:
+        raise CloudMachineNotFound(f"serial {mask_serial(serial)} not found in /devices response")
+    return match
 
 
-async def _fetch_devices(session: aiohttp.ClientSession, *, url: str, jwt: str) -> Any:
+async def _fetch_devices(session: aiohttp.ClientSession, *, url: str, jwt: str, allow_redirects: bool = False) -> Any:
     """GET one /devices URL. Raises CloudTelemetryError on any bad answer."""
     headers = {"Authorization": f"Bearer {jwt}", "source": AWS_REST_SOURCE_HEADER}
     try:
-        async with session.get(url, headers=headers, timeout=_REQUEST_TIMEOUT) as resp:
+        async with session.get(url, headers=headers, timeout=_REQUEST_TIMEOUT, allow_redirects=allow_redirects) as resp:
             if resp.status != 200:
                 raise CloudTelemetryError(f"/devices returned HTTP {resp.status}")
             try:
@@ -161,6 +271,20 @@ async def lookup_machine_name(
     A 200 that simply does not mention the serial is a real answer and is
     never retried against the other host.
     """
+    _, name = await _lookup_machine_record(
+        session, serial=serial, jwt=jwt, base_url=base_url, fallback_base_url=fallback_base_url
+    )
+    return name
+
+
+async def _lookup_machine_record(
+    session: aiohttp.ClientSession,
+    *,
+    serial: str,
+    jwt: str,
+    base_url: str = AWS_REST_BASE_URL_PROD,
+    fallback_base_url: str = AWS_REST_BASE_URL_LEGACY_PROD,
+) -> tuple[dict[str, Any], str]:
     candidates = [base_url]
     if fallback_base_url and fallback_base_url.rstrip("/") != base_url.rstrip("/"):
         candidates.append(fallback_base_url)
@@ -172,7 +296,7 @@ async def lookup_machine_name(
         except CloudTelemetryError as exc:
             failures.append(str(exc))
             continue
-        return extract_machine_name(payload, serial)
+        return _extract_machine_record(payload, serial)
     raise CloudTelemetryError("; ".join(failures) if failures else "no REST device directory configured")
 
 
@@ -234,13 +358,29 @@ def mqtt_subscribe_packet(packet_id: int, topics: list[str], qos: int = 0, *, pr
     return bytes([_SUBSCRIBE << 4 | 0x02]) + _encode_remaining_length(len(body)) + body
 
 
-def mqtt_publish_packet(topic: str, payload: str, *, protocol_version: int = 4) -> bytes:
-    """QoS-0 PUBLISH (no packet identifier in any level; MQTT 5 adds empty properties)."""
+def mqtt_publish_packet(
+    topic: str,
+    payload: str,
+    *,
+    protocol_version: int = 4,
+    packet_id: int | None = None,
+    expiry_seconds: int | None = None,
+) -> bytes:
+    """Non-retained PUBLISH, using QoS 1 when a packet identifier is supplied."""
+    if expiry_seconds is not None and protocol_version < 5:
+        raise ValueError("MQTT PUBLISH expiry requires MQTT 5")
     body = _encode_mqtt_string(topic)
+    if packet_id is not None:
+        if not 1 <= packet_id <= 65535:
+            raise ValueError("invalid MQTT packet identifier")
+        body += packet_id.to_bytes(2, "big")
     if protocol_version >= 5:
-        body += _MQTT5_NO_PROPERTIES
+        # Five property bytes: the Message Expiry Interval identifier followed
+        # by the four-byte unsigned interval in seconds.
+        body += _MQTT5_NO_PROPERTIES if expiry_seconds is None else b"\x05\x02" + expiry_seconds.to_bytes(4, "big")
     body += payload.encode("utf-8")
-    return bytes([_PUBLISH << 4]) + _encode_remaining_length(len(body)) + body
+    flags = 0x02 if packet_id is not None else 0
+    return bytes([_PUBLISH << 4 | flags]) + _encode_remaining_length(len(body)) + body
 
 
 def _skip_properties(payload: bytes, pos: int) -> int:
@@ -351,13 +491,13 @@ def shadow_rejected_topic(thing: str, shadow: str) -> str:
     return f"$aws/things/{thing}/shadow/name/{shadow}/get/rejected"
 
 
-def _shadow_from_topic(topic: str) -> str | None:
-    """Which of SHADOWS does this $aws topic belong to?"""
+def _shadow_from_topic(topic: str, shadows: tuple[str, ...] = SHADOWS) -> str | None:
+    """Return the shadow name if the topic belongs to a requested shadow."""
     parts = topic.split("/")
     # $aws/things/<thing>/shadow/name/<shadow>/get[/suffix]
     if len(parts) >= 6 and parts[:2] == ["$aws", "things"] and parts[3] == "shadow":
         shadow = parts[5]
-        return shadow if shadow in SHADOWS else None
+        return shadow if shadow in shadows else None
     return None
 
 
@@ -419,14 +559,14 @@ class ShadowClient:
         self._scheme = scheme
         self._port = port
 
-    async def fetch(self, *, timeout: float = 20.0) -> dict[str, dict[str, Any]]:
+    async def fetch(self, *, timeout: float = 20.0, shadows: tuple[str, ...] = SHADOWS) -> dict[str, dict[str, Any]]:
         """Return {shadow name: parsed shadow document} (partial OK)."""
         results: dict[str, dict[str, Any]] = {}
         errors: dict[str, str] = {}
         ws, protocol_version = await self._connect()
         try:
             topics: list[str] = []
-            for shadow in SHADOWS:
+            for shadow in shadows:
                 topics.append(shadow_accepted_topic(self._thing, shadow))
                 topics.append(shadow_rejected_topic(self._thing, shadow))
             await ws.send_bytes(mqtt_subscribe_packet(1, topics, protocol_version=protocol_version))
@@ -483,13 +623,13 @@ class ShadowClient:
                     len(suback_codes),
                     next(code for code in suback_codes if code >= 0x80),
                 )
-            _LOGGER.debug("Daedalus cloud: requesting get for %s", ", ".join(SHADOWS))
-            for shadow in SHADOWS:
+            _LOGGER.debug("Daedalus cloud: requesting get for %s", ", ".join(shadows))
+            for shadow in shadows:
                 await ws.send_bytes(
                     mqtt_publish_packet(shadow_get_topic(self._thing, shadow), "{}", protocol_version=protocol_version)
                 )
             deadline = time.monotonic() + timeout
-            while len(results) + len(errors) < len(SHADOWS):
+            while len(results) + len(errors) < len(shadows):
                 packet = reader.next_packet()
                 if packet is None:
                     remaining = deadline - time.monotonic()
@@ -509,10 +649,13 @@ class ShadowClient:
                     if msg.type == aiohttp.WSMsgType.BINARY:
                         reader.feed(msg.data)
                     elif msg.type in (
+                        aiohttp.WSMsgType.CLOSE,
                         aiohttp.WSMsgType.CLOSED,
                         aiohttp.WSMsgType.CLOSING,
                         aiohttp.WSMsgType.ERROR,
                     ):
+                        if results:
+                            break
                         raise CloudTelemetryError("MQTT WS closed by broker")
                     continue
                 if packet.type == _SUBACK:
@@ -520,9 +663,9 @@ class ShadowClient:
                     continue
                 if packet.type != _PUBLISH:
                     continue
-                self._route_publish(packet, results, errors)
+                self._route_publish(packet, results, errors, shadows)
             if results:
-                missing = [s for s in SHADOWS if s not in results and s not in errors]
+                missing = [s for s in shadows if s not in results and s not in errors]
                 if missing:
                     _LOGGER.debug(
                         "Daedalus cloud: partial shadow set after %.0fs, no answer for %s",
@@ -537,6 +680,8 @@ class ShadowClient:
                 f"({len(topics)} topics subscribed, no get/accepted or get/rejected answer)"
             )
         except (aiohttp.ClientError, TimeoutError, OSError) as exc:
+            if results:
+                return results
             # WS resets must surface as the optional cloud error the
             # coordinator logs, never as a raw crash. The text falls back to
             # the exception type: several transport errors stringify empty.
@@ -550,10 +695,13 @@ class ShadowClient:
         packet: MqttPacket,
         results: dict[str, dict[str, Any]],
         errors: dict[str, str],
+        shadows: tuple[str, ...],
     ) -> None:
         topic, body = packet.publish_parts()
-        shadow = _shadow_from_topic(topic)
+        shadow = _shadow_from_topic(topic, shadows)
         if shadow is None or shadow in results or shadow in errors:
+            return
+        if topic not in (shadow_accepted_topic(self._thing, shadow), shadow_rejected_topic(self._thing, shadow)):
             return
         if topic.endswith("/get/accepted"):
             try:
@@ -572,7 +720,8 @@ class ShadowClient:
             # and keep the raw body out of the log line (it can echo the
             # request context); the shadow name is what a retest needs.
             errors[shadow] = f"shadow get rejected by broker: {body[:200]}"
-            _LOGGER.warning("Daedalus cloud: shadow get for %s rejected by the broker", shadow)
+            log = _LOGGER.debug if shadow == _BREWING_STATISTICS_SHADOW else _LOGGER.warning
+            log("Daedalus cloud: shadow get for %s rejected by the broker", shadow)
 
     def _ws_url(self, *, app_style: bool) -> str:
         """WebSocket endpoint; only the app-style one carries the authorizer."""
@@ -755,16 +904,93 @@ async def fetch_cloud_state(
     serial: str,
     jwt: str,
     machine_name: str | None,
-) -> tuple[dict[str, dict[str, Any]], str]:
-    """Resolve the thing name if needed + read the shadows.
-
-    Returns (shadow documents by name, machine_name actually used).
-    Raises CloudTelemetryError on any failure.
-    """
-    thing = machine_name or await lookup_machine_name(session, serial=serial, jwt=jwt)
+    check_device_status: bool = False,
+) -> CloudState:
+    """Read shadows and determine whether to publish the last reported status."""
+    thing = machine_name
+    directory_matched = False
+    presence = None
+    if check_device_status or not thing:
+        try:
+            device, name = await _lookup_machine_record(session, serial=serial, jwt=jwt)
+        except CloudMachineNotFound:
+            raise
+        except CloudTelemetryError:
+            if not thing:
+                raise
+        else:
+            thing = name
+            directory_matched = True
+            presence = _directory_presence(device)
     if not _THING_NAME_RE.fullmatch(str(thing)):
         # Never echo the rejected value: it is the hostile input itself.
         raise CloudTelemetryError(f"cloud thing name rejected by shape check ({len(str(thing))} chars)")
     client = ShadowClient(session, thing_name=thing, jwt=jwt)
     docs = await client.fetch()
-    return docs, thing
+    status_error = None
+    if check_device_status:
+        if presence == "OFFLINE":
+            status_error = "Device directory reports the machine offline"
+        elif "MachineStatus" not in docs:
+            status_error = "MachineStatus shadow was not returned"
+        # A matching directory record with no presence field is normal. Its
+        # shadow is the last reported state, which can stay unchanged for hours.
+        # With only a stored thing name, require a recent Status report. An
+        # old capabilities shadow can still be read after a machine disconnects.
+        elif not (directory_matched and presence in (None, "ONLINE")) and not _recent_reported_status(
+            docs["MachineStatus"]
+        ):
+            status_error = (
+                "Device directory returned unknown presence and MachineStatus has no recent Status timestamp"
+                if directory_matched
+                else "Device directory lookup failed and MachineStatus has no recent Status timestamp"
+            )
+    if status_error is not None:
+        docs = {name: doc for name, doc in docs.items() if name != "MachineStatus"}
+    return CloudState(docs, thing, status_error)
+
+
+async def fetch_brewing_statistics(session: aiohttp.ClientSession, *, thing_name: str, jwt: str) -> dict[str, int]:
+    """Read the verified lifetime counters from the optional statistics shadow."""
+    client = ShadowClient(session, thing_name=thing_name, jwt=jwt)
+    documents = await client.fetch(shadows=(_BREWING_STATISTICS_SHADOW,), timeout=5)
+    state = documents[_BREWING_STATISTICS_SHADOW].get("state")
+    reported = state.get("reported") if isinstance(state, dict) else None
+    if not isinstance(reported, dict):
+        return {}
+    counters: dict[str, int] = {}
+    for field, key in BREWING_STATISTICS_KEYS.items():
+        value = reported.get(field)
+        if type(value) is int and value >= 0:
+            counters[key] = value
+    return counters
+
+
+async def fetch_reported_lan_ip(session: aiohttp.ClientSession, *, thing_name: str, jwt: str) -> str | None:
+    """Get the selected machine's reported LAN address as an untrusted hint."""
+    if not _THING_NAME_RE.fullmatch(thing_name):
+        raise CloudTelemetryError("Invalid cloud thing name")
+    client = ShadowClient(session, thing_name=thing_name, jwt=jwt)
+    try:
+        async with asyncio.timeout(12):
+            documents = await client.fetch(timeout=3)
+    except (aiohttp.ClientError, OSError) as exc:
+        raise CloudTelemetryError("The machine's LAN address could not be read") from exc
+    state = documents.get("MachineStatus", {}).get("state")
+    reported = state.get("reported") if isinstance(state, dict) else None
+    value = reported.get("LanIpAddress") if isinstance(reported, dict) else None
+    if isinstance(value, str):
+        with contextlib.suppress(LanProtocolError):
+            return validate_lan_host(value.strip())
+    return None
+
+
+def _recent_reported_status(document: Any) -> bool:
+    """Allow one polling interval of age or clock skew on the Status change."""
+    for key in ("metadata", "reported", "Status", "timestamp"):
+        if not isinstance(document, dict):
+            return False
+        document = document.get(key)
+    now = time.time()
+    # The bounded comparison also excludes NaN and infinities.
+    return type(document) in (int, float) and now - CLOUD_POLL_SECONDS <= document <= now + CLOUD_POLL_SECONDS

@@ -1,108 +1,109 @@
 # De'Longhi My Coffee Lounge (Daedalus) — Home Assistant Integration
 
 Home Assistant custom integration for **modern De'Longhi machines** that ship the
-**My Coffee Lounge** app (package `com.delonghigroup.daedalus`) — most notably
-the **Eletta Ultra**.
+**My Coffee Lounge** app (package `com.delonghigroup.daedalus`), including the
+**Eletta Ultra** and **PrimaDonna Aromatic**.
 
-> **Status: beta.** Monitoring works end to end — over the LAN socket and, since
-> 0.4.0, through optional read-only cloud telemetry (~77 mapped shadow fields:
-> state, alarms, profiles, counters, firmware versions). Brewing commands are
-> still not decoded; help wanted via
-> [issue #18 on the upstream repo](https://github.com/sk7n4k3d/delonghi-ha/issues/18).
+> **Status: beta.** Monitor the machine over the local network or with optional
+> read-only cloud telemetry.
+
+This README describes the Daedalus **0.5.0** source tree. Check the
+[latest published release](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases/latest)
+for the available version. See the [tagged v0.4.7 README](https://github.com/sk7n4k3d/delonghi-daedalus-ha/blob/v0.4.7/README.md)
+for that release's setup and limitations.
 
 This integration is the **Daedalus stack** counterpart to
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha) (which targets the older
-**Coffee Link / Ayla Networks** machines like the Eletta Explore). The two stacks
-share *nothing* at the wire-protocol level, so they live in two separate
-integrations / repos.
+**Coffee Link / Ayla Networks** machines like the Eletta Explore).
 
 ## Which one do I need?
 
 | Your app | Use this integration |
 |---|---|
 | **Coffee Link** (older, Ayla cloud) | [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha) |
-| **My Coffee Lounge** (newer, AWS IoT, BLE provisioning, Eletta Ultra) | **this repo** |
+| **My Coffee Lounge** (newer, AWS IoT, Eletta Ultra and PrimaDonna Aromatic) | **this repository** |
 
-If your machine is on Coffee Link don't install this integration — install
-the upstream `delonghi-ha` instead.
+## Installation
 
-## Installation (HACS)
+The integration requires **Home Assistant 2024.11.0 or later**.
+
+### Home Assistant 2026.11 and later
+
+1. Go to **Settings → Marketplace → Add from link**.
+2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha`. Connect a GitHub account if Marketplace prompts you to do so.
+3. Open **De'Longhi My Coffee Lounge (Daedalus)** and install the latest stable release.
+4. Open setup from Marketplace. Restart Home Assistant after an upgrade.
+
+### Home Assistant 2024.11 through 2026.10 with HACS
 
 1. In HACS → **Integrations** → ⋮ → **Custom repositories**
-2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as **Integration**
-3. Find **De'Longhi My Coffee Lounge (Daedalus)** in the list, install
-4. Pick the latest release (stable versions ship since 0.4.0)
-5. Restart Home Assistant
-6. **Settings → Devices & Services → Add Integration → De'Longhi My Coffee Lounge**
+2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as an **Integration** custom repository.
+3. Download the latest stable release of **De'Longhi My Coffee Lounge (Daedalus)**.
+4. Restart Home Assistant.
+5. Go to **Settings → Devices & Services → Add Integration** and select **De'Longhi My Coffee Lounge**.
+
+If you install manually, download `delonghi_daedalus.zip` from the [mirror releases](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases). Extract it into `custom_components/delonghi_daedalus` so that `manifest.json` is directly inside that folder. On a manual upgrade, replace that component folder with a clean extraction and restart Home Assistant.
 
 ## Configuration
 
-You'll need:
+1. Sign in with your **My Coffee Lounge** account and choose your machine from
+   the account's device directory. If discovery is unavailable, the setup flow
+   offers manual serial number entry.
+2. Confirm the machine's LAN address and approve its certificate on a network
+   you trust. Enable cloud telemetry to monitor the machine without local access.
 
-- **My Coffee Lounge** account email + password
-- **LAN IP** of the machine (look it up on your router or in the official app)
-- **Serial number** printed on the machine (sticker on the side / underside)
-- **Region** — the integration auto-probes EU / EU_US / CH on `403005` errors,
-  so leave on EU unless you know your account was created in another pool
+Follow the [upstream setup guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-setup.md)
+for certificate verification, reconfiguration and interpreting availability.
+With cloud telemetry enabled, compatible machines also expose read-only lifetime
+brewing counters.
 
-The password is **not** persisted — only the long-lived Gigya session token and
-the JWT are stored on disk. Home Assistant's native reauth flow asks for the
-password again on the rare occasion the session token is revoked.
+### Upgrading from 0.4.7
 
-## Security notes
+Restart Home Assistant after the upgrade. Open the integration entry's menu and
+select **Reconfigure** to approve the machine's LAN certificate. Cloud telemetry,
+if enabled, can continue while certificate approval is pending. Retained
+entities keep their IDs and customizations. If an automation or dashboard used
+the obsolete cloud LAN address sensor, update it to use the **LAN IP address**
+diagnostic entity.
 
-- LAN connections use TLS with a self-signed certificate (the firmware presents
-  one). The integration accepts the cert via `verify_mode=CERT_NONE` but **only**
-  if the host you configure is a numeric IP in a private / loopback / link-local
-  range. Public IPs and hostnames are rejected — auth credentials in the WebSocket
-  AUTH frame would otherwise be MITM-able.
-- All Gigya API keys hardcoded in `const.py` are extracted from the public APK
-  manifest — equivalent to OAuth client IDs, not secrets.
-- A diagnostics endpoint is wired so you can attach a `Download diagnostics` zip
-  to GitHub issues without leaking your JWT, session token, email, or serial
-  number — those are scrubbed in the payload.
+## Controls and limitations
 
-## What works today
+Beverage preparation remains unavailable in Daedalus. The separate opt-in
+**Warm up** action was verified on specific EU PrimaDonna Aromatic ECAM63070
+firmware. In 0.5.0, long **Languages** lists fit Home Assistant's 255-character
+state limit. The full list remains available in the sensor's attributes.
 
-- ✅ Gigya login + JWT retrieval (auto-probe across pools)
-- ✅ LAN WebSocket handshake (`/ws/lan2lan`) with AUTH frame
-- ✅ HA reauth flow + diagnostics (JWT / session token / email / serial scrubbed)
-- ✅ Connection-state binary sensor + LAN ID / SN / IP diagnostic sensors
-- ✅ **Cloud telemetry (opt-in, read-only)** since 0.4.0: AWS IoT device shadows
-  (`MachineStatus`, `MachineCapabilities`) over MQTT 5, ~77 mapped fields as
-  sensors/binary sensors (state, alarms, user profiles, coffee temperatures,
-  grinder/hopper, firmware versions), EN+FR labels, example Lovelace card
-  upstream at `docs/daedalus-cloud-card.yaml`. Works even when the machine is
-  off the LAN; never exposes `BlePassCode` / `MAC` / `SN`.
+## Privacy
+
+Setup uses your email and password to sign in with De'Longhi's account service.
+Home Assistant stores the account email, session credentials and machine
+identifiers in the config entry. The password is used at sign-in and requested
+again if reauthentication is needed. Optional cloud telemetry reads operating
+state, alarms and capabilities from De'Longhi's AWS IoT service.
+
+Home Assistant pins the certificate you approve and checks it before sending
+account credentials to the machine over the LAN. Integration diagnostics redact
+account credentials and machine identifiers. Review downloaded diagnostics
+before sharing them publicly.
 
 ## Verified models
 
-| Machine | Model id | Monitoring | Commands | Tested with |
-|---|---|---|---|---|
-| Eletta Ultra | — | ✅ | ❌ (not decoded yet) | maintainer |
-| PrimaDonna Aromatic | ECAM63070 | ✅ (45 sensors + 40 binary sensors, LAN handshake, state matches) | not tested | Daedalus 0.4.7, HA Core 2026.11.1, EU owner account — thanks @numanx11 ([#55](https://github.com/sk7n4k3d/delonghi-ha/issues/55)) |
-
-Known quirk: on some machines the `Languages` sensor value exceeds Home
-Assistant's 255-character state limit. Cosmetic only; a truncation fix is
-planned.
-
-## What does NOT work yet
-
-- ❌ Brewing commands (need an MITM trace of the official app to decode the
-  `Message` catalog — help wanted, see upstream issue #18)
-- ❌ Cloud `/devices` auto-discovery (the serial + IP are entered manually;
-  the cloud directory is only used internally to resolve the shadow thing name)
+| Machine | Verified behavior |
+|---|---|
+| Eletta Ultra | Monitoring |
+| PrimaDonna Aromatic ECAM63070 | [Monitoring](https://github.com/sk7n4k3d/delonghi-ha/issues/55) and [opt-in warm-up for the verified EU firmware](https://github.com/sk7n4k3d/delonghi-ha/pull/59) |
 
 ## Source of truth
 
 The integration code lives in the upstream
 [`delonghi-ha` monorepo](https://github.com/sk7n4k3d/delonghi-ha) under
 `custom_components/delonghi_daedalus/`. This repo is **a packaging mirror** for
-HACS distribution — releases here are cut from the upstream `master` branch.
+HACS distribution. See the [mirror release process](docs/releasing.md).
 
-Open issues, PRs, and contribute on the upstream repo.
+Report bugs and request features in the [upstream issue tracker](https://github.com/sk7n4k3d/delonghi-ha/issues).
+Submit code changes as [upstream pull requests](https://github.com/sk7n4k3d/delonghi-ha/pulls).
 
 ## License
 
-Same as upstream `delonghi-ha`. Reverse-engineering for personal HA
-interoperability with hardware you own.
+[MIT](LICENSE), including the upstream attribution for the Aromatic warm-up
+protocol reference.
