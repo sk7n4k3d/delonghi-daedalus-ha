@@ -4,15 +4,23 @@ from __future__ import annotations
 
 import json
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import MAX_LENGTH_STATE_STATE
+from homeassistant.const import MAX_LENGTH_STATE_STATE, PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .cloud_keys import KIND_CAPABILITY, CloudEntityDiscovery, CloudKey, cloud_key_display, lookup_cloud_key
-from .const import BREWING_STATISTICS_KEYS, CONF_CLOUD_TELEMETRY, DOMAIN
+from .const import (
+    AUTO_OFF_DELAY,
+    BREWING_STATISTICS_KEYS,
+    CONF_CLOUD_TELEMETRY,
+    CONF_DRINK_VISIBILITY,
+    DOMAIN,
+    MAINTENANCE_COUNTER_KEYS,
+    MAINTENANCE_PERCENTAGE_KEYS,
+)
 from .coordinator import DaedalusCoordinator
 from .entity import DaedalusCloudEntity, DaedalusEntity
 
@@ -33,18 +41,33 @@ async def async_setup_entry(
     if not entry.data.get(CONF_CLOUD_TELEMETRY):
         return
     discovery = CloudEntityDiscovery(want_binary=False)
-    added_statistics: set[str] = set()
+    added_settings_and_counters: set[str] = set()
+    visibility_added = False
 
     def _add_cloud_sensors() -> None:
+        nonlocal visibility_added
         cloud = (coordinator.data or {}).get("cloud")
         new: list[SensorEntity] = [
             DaedalusCloudSensor(coordinator, source, key, meta=meta) for source, key, meta in discovery.discover(cloud)
         ]
-        counters = (cloud or {}).get("brewing_statistics", {})
-        for key in BREWING_STATISTICS_KEYS.values():
-            if key in counters and key not in added_statistics:
-                added_statistics.add(key)
-                new.append(DaedalusBrewingStatisticSensor(coordinator, key=key))
+        for sensor_cls, keys in (
+            (DaedalusBrewingStatisticSensor, BREWING_STATISTICS_KEYS.values()),
+            (DaedalusMaintenanceCounterSensor, MAINTENANCE_COUNTER_KEYS.values()),
+            (DaedalusMaintenanceProgressSensor, MAINTENANCE_PERCENTAGE_KEYS.values()),
+            (DaedalusAutoOffDelaySensor, (AUTO_OFF_DELAY,)),
+        ):
+            values = (cloud or {}).get(sensor_cls.cloud_key, {})
+            for key in keys:
+                if key in values and key not in added_settings_and_counters:
+                    added_settings_and_counters.add(key)
+                    new.append(sensor_cls(coordinator, key=key))
+        if (
+            entry.data.get(CONF_DRINK_VISIBILITY)
+            and not visibility_added
+            and (cloud or {}).get("visible_drinks_count") is not None
+        ):
+            visibility_added = True
+            new.append(DaedalusVisibleDrinksSensor(coordinator))
         if new:
             async_add_entities(new)
 
@@ -98,11 +121,8 @@ class DaedalusLanIpSensor(_DaedalusLanDiagnosticSensor):
         return data.get("host")
 
 
-class DaedalusBrewingStatisticSensor(_DaedalusSensorBase):
-    """One lifetime brewing counter reported by the machine."""
-
-    _attr_entity_category = None
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+class _DaedalusCloudNumberSensor(_DaedalusSensorBase):
+    cloud_key: str
 
     @property
     def available(self) -> bool:
@@ -111,7 +131,55 @@ class DaedalusBrewingStatisticSensor(_DaedalusSensorBase):
     @property
     def native_value(self) -> int | None:
         cloud = (self.coordinator.data or {}).get("cloud") or {}
-        return cloud.get("brewing_statistics", {}).get(self._attr_translation_key)
+        return cloud.get(self.cloud_key, {}).get(self._attr_translation_key)
+
+
+class _DaedalusCloudCounterSensor(_DaedalusCloudNumberSensor):
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+
+class DaedalusBrewingStatisticSensor(_DaedalusCloudCounterSensor):
+    """One lifetime brewing counter reported by the machine."""
+
+    cloud_key = "brewing_statistics"
+
+
+class DaedalusMaintenanceCounterSensor(_DaedalusCloudCounterSensor):
+    """One lifetime maintenance counter reported by the machine."""
+
+    cloud_key = "maintenance_counters"
+
+
+class DaedalusMaintenanceProgressSensor(_DaedalusCloudNumberSensor):
+    """A maintenance percentage reported by the machine."""
+
+    cloud_key = "machine_settings"
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+
+class DaedalusAutoOffDelaySensor(_DaedalusCloudNumberSensor):
+    """The configured delay before the machine automatically turns off."""
+
+    cloud_key = "machine_settings"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+
+
+class DaedalusVisibleDrinksSensor(_DaedalusSensorBase):
+    """The number of drink flags set to visible in the cloud shadow."""
+
+    def __init__(self, coordinator: DaedalusCoordinator) -> None:
+        super().__init__(coordinator, key="visible_drinks_count")
+
+    @property
+    def native_value(self) -> int | None:
+        cloud = (self.coordinator.data or {}).get("cloud") or {}
+        return cloud.get("visible_drinks_count")
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.native_value is not None
 
 
 class DaedalusCloudSensor(DaedalusCloudEntity, SensorEntity):

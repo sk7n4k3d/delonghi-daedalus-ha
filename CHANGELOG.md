@@ -6,20 +6,34 @@ upstream; the Daedalus entries are reproduced here for HACS.
 
 ## [0.5.0]
 
-- Select your machine during setup. Confirm its LAN address and approve its
-  certificate, or enable cloud telemetry to monitor without local access.
-- Existing LAN installations need to approve the certificate in **Reconfigure**
-  after upgrading. Retained entities keep their IDs and settings. Replace
-  references to the removed cloud LAN address sensor with the dedicated **LAN IP
-  address** diagnostic entity.
-- Each appliance gets a Home Assistant device page and improved connection
-  recovery and diagnostics. Long language lists fit Home Assistant's state
-  limit, and Romanian translations are included.
-- With cloud telemetry enabled, compatible machines expose read-only lifetime
-  counts for brewing, stopped brews and brewing errors.
-- Adds opt-in warm-up on the verified EU PrimaDonna Aromatic ECAM63070 firmware.
+- Sélectionnez votre machine lors de l'installation. Confirmez son adresse LAN et
+  approuvez son certificat, ou activez la télémétrie cloud pour surveiller sans
+  accès local.
+- Les installations LAN existantes doivent approuver le certificat dans
+  **Reconfigurer** après la mise à jour. Les entités conservées gardent leurs IDs
+  et réglages. Remplacez les références à l'ancienne adresse LAN cloud par
+  l'entité de diagnostic **Adresse IP LAN**.
+- Chaque machine dispose d'une page d'appareil Home Assistant, avec récupération
+  de connexion et diagnostics améliorés. Les longues listes de langues tiennent
+  dans la limite d'état de Home Assistant, et les traductions roumaines sont
+  incluses.
+- Avec la télémétrie cloud activée, les machines compatibles exposent en
+  lecture seule les compteurs de durée de vie (extractions, extractions
+  interrompues, erreurs) et les compteurs d'entretien (descaling,
+  enregistrements de filtre).
+- Nouveautés entretien : pourcentages signalés par la machine (progression
+  descaling, usage du filtre à eau, remplissage du marc), délai de mise en
+  veille configuré, indicateur de filtre installé, et avertissement anticipé
+  optionnel (notification sur téléphone + liste de courses) via blueprint.
+- Compteur de boissons visibles et favoris à boissons locaux (entité
+  **Boisson préférée**), sans télémétrie obligatoire pour les favoris.
+- Préchauffage (warm-up) en option sur l'ECAM63070 PrimaDonna Aromatic EU au
+  firmware vérifié, avec notification automatique au retour au repos.
+- Cartes et automatisations d'exemple : alertes du moment (carte attention),
+  compteurs quotidiens/hebdomadaires (Utility Meters), historique d'entretien
+  observé et journal café/moulin local.
 
-[Setup and upgrade guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-setup.md)
+[Guide d'installation et de mise à niveau](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-setup.md)
 
 ## [0.4.7] — 2026-11-18
 

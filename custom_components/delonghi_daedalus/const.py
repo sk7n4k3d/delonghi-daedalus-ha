@@ -68,6 +68,9 @@ CONF_SESSION_SECRET: Final = "session_secret"  # noqa: S105
 CONF_LAN_AUTH_MESSAGE: Final = "lan_auth_message"
 # Opt-in read-only cloud telemetry (AWS IoT shadow over MQTT/WSS).
 CONF_CLOUD_TELEMETRY: Final = "cloud_telemetry"
+CONF_DRINK_VISIBILITY: Final = "drink_visibility"
+CONF_DRINK_FAVORITES: Final = "drink_favorites"
+CONF_FAVORITE_DRINK: Final = "favorite_drink"
 CONF_AROMATIC_WARMUP: Final = "aromatic_warmup"
 CONF_AROMATIC_WARMUP_PENDING: Final = "aromatic_warmup_pending"
 
@@ -83,6 +86,23 @@ CLOUD_POLL_SECONDS: Final = 120
 CLOUD_FETCH_TIMEOUT_SECONDS: Final = 75
 
 
+# Machine settings change infrequently and use their own MQTT session.
+MACHINE_SETTINGS_POLL_SECONDS: Final = 15 * 60
+MACHINE_SETTINGS_RETRY_SECONDS: Final = 60 * 60
+MACHINE_SETTINGS_FETCH_TIMEOUT_SECONDS: Final = 10
+MAINTENANCE_COUNTER_KEYS: Final = {
+    "CalcTotCnt": "descale_count",
+    "FilterTotCnt": "water_filter_registration_count",
+}
+MAINTENANCE_PERCENTAGE_KEYS: Final = {
+    "DecalPerc": "descale_progress",
+    "FilterUsagePerc": "water_filter_usage",
+    "GroundCntPerc": "grounds_container_fill",
+}
+AUTO_OFF_DELAY: Final = "auto_off_delay"
+WATER_FILTER_INSTALLED: Final = "water_filter_installed"
+
+
 # Statistics use a separate MQTT session so shadow authorization or timeouts
 # cannot interfere with MachineStatus and MachineCapabilities.
 BREWING_STATISTICS_POLL_SECONDS: Final = 15 * 60
@@ -93,3 +113,8 @@ BREWING_STATISTICS_KEYS: Final = {
     "Stopped": "stopped_brew_count",
     "InError": "brewing_error_count",
 }
+
+# Visibility changes independently of operating status.
+DRINK_VISIBILITY_POLL_SECONDS: Final = 15 * 60
+DRINK_VISIBILITY_RETRY_SECONDS: Final = 60 * 60
+DRINK_VISIBILITY_FETCH_TIMEOUT_SECONDS: Final = 10
