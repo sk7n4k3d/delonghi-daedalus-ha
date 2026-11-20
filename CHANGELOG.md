@@ -4,6 +4,18 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
+## [0.5.2]
+
+- Avec la télémétrie cloud activée, les machines compatibles peuvent exposer
+  leurs nombres de préparations par tranche de trois heures. Le capteur
+  **Tranches horaires de préparation signalées** est désactivé par défaut.
+  [Guide d'activation et carte de tableau de bord](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md)
+
+## [0.5.1]
+
+- Les liens de documentation et de signalement de problèmes du manifeste
+  pointent vers le dépôt de distribution, conformément à la revue HACS.
+
 ## [0.5.0]
 
 - Sélectionnez votre machine lors de l'installation. Confirmez son adresse LAN et
