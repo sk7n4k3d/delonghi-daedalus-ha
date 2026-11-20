@@ -5,8 +5,12 @@ Home Assistant custom integration for **modern De'Longhi machines** that ship th
 **Eletta Ultra** and **PrimaDonna Aromatic**.
 
 > **Status: beta.** Monitor the machine over the local network or with optional
-> read-only cloud telemetry. The integration offers an opt-in warm-up action
-> for a verified PrimaDonna Aromatic configuration.
+> read-only cloud telemetry.
+
+This README describes the Daedalus **0.5.0** source tree. Check the
+[latest published release](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases/latest)
+for the available version. See the [tagged v0.4.7 README](https://github.com/sk7n4k3d/delonghi-daedalus-ha/blob/v0.4.7/README.md)
+for that release's setup and limitations.
 
 This integration is the **Daedalus stack** counterpart to
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha) (which targets the older
@@ -42,8 +46,9 @@ If you install manually, download `delonghi_daedalus.zip` from the [mirror relea
 
 ## Configuration
 
-1. Sign in with your **My Coffee Lounge** account and choose your machine. If
-   discovery is unavailable, the setup flow offers manual serial number entry.
+1. Sign in with your **My Coffee Lounge** account and choose your machine from
+   the account's device directory. If discovery is unavailable, the setup flow
+   offers manual serial number entry.
 2. Confirm the machine's LAN address and approve its certificate on a network
    you trust. Enable cloud telemetry to monitor the machine without local access.
 
@@ -60,6 +65,13 @@ if enabled, can continue while certificate approval is pending. Retained
 entities keep their IDs and customizations. If an automation or dashboard used
 the obsolete cloud LAN address sensor, update it to use the **LAN IP address**
 diagnostic entity.
+
+## Controls and limitations
+
+Beverage preparation remains unavailable in Daedalus. The separate opt-in
+**Warm up** action was verified on specific EU PrimaDonna Aromatic ECAM63070
+firmware. In 0.5.0, long **Languages** lists fit Home Assistant's 255-character
+state limit. The full list remains available in the sensor's attributes.
 
 ## Privacy
 
@@ -88,7 +100,8 @@ The integration code lives in the upstream
 `custom_components/delonghi_daedalus/`. This repo is **a packaging mirror** for
 HACS distribution. See the [mirror release process](docs/releasing.md).
 
-Open issues, PRs, and contribute on the upstream repo.
+Report bugs and request features in the [upstream issue tracker](https://github.com/sk7n4k3d/delonghi-ha/issues).
+Submit code changes as [upstream pull requests](https://github.com/sk7n4k3d/delonghi-ha/pulls).
 
 ## License
 
