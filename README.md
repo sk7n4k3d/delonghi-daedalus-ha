@@ -7,7 +7,7 @@ Home Assistant custom integration for **modern De'Longhi machines** that ship th
 > **Status: beta.** Monitor the machine over the local network or with optional
 > read-only cloud telemetry.
 
-This README describes the Daedalus **0.5.0** source tree. Check the
+This README describes the Daedalus **0.5.2** source tree. Check the
 [latest published release](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases/latest)
 for the available version. See the [tagged v0.4.7 README](https://github.com/sk7n4k3d/delonghi-daedalus-ha/blob/v0.4.7/README.md)
 for that release's setup and limitations.
@@ -55,7 +55,12 @@ If you install manually, download `delonghi_daedalus.zip` from the [mirror relea
 Follow the [upstream setup guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-setup.md)
 for certificate verification, reconfiguration and interpreting availability.
 With cloud telemetry enabled, compatible machines also expose read-only lifetime
-brewing counters.
+brewing counters. If your machine reports counts by time of day, you can
+[enable the optional sensor and add a dashboard card](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md).
+Machines that report recipe statistics can also show counts for individual
+drinks and totals for hot and cold preparations. When the integration recognizes
+the Eletta Ultra ECAM470.75.TXB, it uses verified names for mapped recipes.
+[Guide to brew counts by drink](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-drink-statistics.md)
 
 ### Upgrading from 0.4.7
 

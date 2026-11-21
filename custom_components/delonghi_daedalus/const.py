@@ -113,6 +113,20 @@ BREWING_STATISTICS_KEYS: Final = {
     "Stopped": "stopped_brew_count",
     "InError": "brewing_error_count",
 }
+BREWING_TIME_OF_DAY_KEYS: Final = (
+    "Time0_2",
+    "Time3_5",
+    "Time6_8",
+    "Time9_11",
+    "Time12_14",
+    "Time15_17",
+    "Time18_20",
+    "Time21_23",
+)
+BREWING_CLUSTER_KEYS: Final = {
+    "HOT": "hot_brew_count",
+    "COLD": "cold_brew_count",
+}
 
 # Visibility changes independently of operating status.
 DRINK_VISIBILITY_POLL_SECONDS: Final = 15 * 60
