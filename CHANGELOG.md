@@ -10,6 +10,11 @@ upstream; the Daedalus entries are reproduced here for HACS.
   leurs nombres de préparations par tranche de trois heures. Le capteur
   **Tranches horaires de préparation signalées** est désactivé par défaut.
   [Guide d'activation et carte de tableau de bord](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md)
+- Avec la télémétrie cloud activée, les machines compatibles exposent des
+  compteurs par recette et des totaux de préparations chaudes et froides.
+  Les capteurs par recette sont désactivés par défaut. Les noms vérifiés
+  des recettes s'affichent lorsque l'Eletta Ultra ECAM470.75.TXB est reconnue.
+  [Guide des compteurs par boisson](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-drink-statistics.md)
 
 ## [0.5.1]
 

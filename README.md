@@ -57,6 +57,10 @@ for certificate verification, reconfiguration and interpreting availability.
 With cloud telemetry enabled, compatible machines also expose read-only lifetime
 brewing counters. If your machine reports counts by time of day, you can
 [enable the optional sensor and add a dashboard card](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md).
+Machines that report recipe statistics can also show counts for individual
+drinks and totals for hot and cold preparations. When the integration recognizes
+the Eletta Ultra ECAM470.75.TXB, it uses verified names for mapped recipes.
+[Guide to brew counts by drink](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-drink-statistics.md)
 
 ### Upgrading from 0.4.7
 
