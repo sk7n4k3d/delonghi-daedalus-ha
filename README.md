@@ -54,13 +54,22 @@ If you install manually, download `delonghi_daedalus.zip` from the [mirror relea
 
 Follow the [upstream setup guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-setup.md)
 for certificate verification, reconfiguration and interpreting availability.
-With cloud telemetry enabled, compatible machines also expose read-only lifetime
-brewing counters. If your machine reports counts by time of day, the optional
-**Tranches horaires de préparation signalées** sensor and its dashboard card are
-described in the [brewing-hours guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md).
-Machines that report per-recipe statistics expose counts for individual drinks
-and totals for hot and cold preparations, documented in the
-[drink-statistics guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-drink-statistics.md).
+
+### Brewing statistics
+
+Enable **Read-only cloud telemetry** to see lifetime brewing counters on
+compatible machines. Daedalus 0.5.2 also exposes these statistics when the
+machine reports them.
+
+- **Time of day.** Enable **Reported brewing time buckets** among the disabled
+  diagnostics on the device page. The sensor's state is the number of intervals
+  available, and its attributes give the brew count for each reported interval.
+  [Brewing hours dashboard guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md)
+- **By drink and temperature.** Enable the individual recipe counters you want
+  on the device page. Mapped recipes show their names on recognized models, and
+  other recipes show their IDs. **Hot brew count** and **Cold brew count** are
+  enabled by default when reported.
+  [Drink statistics dashboard guide](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-drink-statistics.md)
 
 ### Upgrading from 0.4.7
 

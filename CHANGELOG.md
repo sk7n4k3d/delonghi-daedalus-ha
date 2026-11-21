@@ -4,6 +4,14 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
+## [Unreleased]
+
+- Le README a maintenant une section **Brewing statistics** qui dit où activer,
+  sur la page de l'appareil, les compteurs par tranche horaire, les compteurs par
+  recette et les totaux chaud/froid. **Rien de nouveau côté code** : ces entités
+  existent depuis la 0.5.2 sur les machines qui publient ces statistiques — elles
+  n'étaient simplement pas documentées ailleurs qu'un paragraphe d'une ligne.
+
 ## [0.5.1]
 
 - Métadonnées uniquement : la documentation et le suivi des tickets du manifest
