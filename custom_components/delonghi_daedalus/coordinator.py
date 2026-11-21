@@ -22,13 +22,15 @@ from .api import (
     DaedalusLanSerialMismatchError,
 )
 from .cloud import (
+    BrewingStatistics,
     CloudTelemetryError,
     MachineSettingsTelemetry,
-    fetch_brewing_statistics,
+    fetch_brewing_statistics_snapshot,
     fetch_cloud_state,
     fetch_machine_settings,
     fetch_visible_drinks_count,
     flatten_shadow,
+    reported_field_timestamp,
 )
 from .const import (
     BREWING_STATISTICS_FETCH_TIMEOUT_SECONDS,
@@ -54,6 +56,7 @@ from .const import (
     DRINK_VISIBILITY_RETRY_SECONDS,
     GIGYA_API_KEYS,
     GIGYA_POOL_EU,
+    HOT_CARAFE_RINSE_EVIDENCE_FIELDS,
     MACHINE_SETTINGS_FETCH_TIMEOUT_SECONDS,
     MACHINE_SETTINGS_POLL_SECONDS,
     MACHINE_SETTINGS_RETRY_SECONDS,
@@ -68,6 +71,12 @@ _LOGGER = get_logger(__name__)
 _LAN_CONNECT_TIMEOUT = 35
 _LAN_MAX_RETRY_SECONDS = 300
 _CLOUD_MAX_AGE = CLOUD_POLL_SECONDS + CLOUD_FETCH_TIMEOUT_SECONDS + DEFAULT_UPDATE_INTERVAL_SECONDS
+_BREWING_STATISTICS_PROJECTIONS = {
+    "brewing_statistics": "counters",
+    "brewing_hours": "time_of_day",
+    "recipe_brew_counts": "recipes",
+    "cluster_brew_counts": "clusters",
+}
 
 
 class DaedalusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -396,6 +405,8 @@ class DaedalusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             thing = cloud_state.machine_name
             cloud_data = {"machine_name": thing, "fetched_at": time.time()}
             for name, key in (("MachineStatus", "status_flat"), ("MachineCapabilities", "capabilities_flat")):
+                if name == "MachineStatus" and cloud_state.status_error is not None:
+                    continue
                 document = cloud_state.shadows.get(name)
                 state = document.get("state") if isinstance(document, dict) else None
                 if isinstance(state, dict) and isinstance(state.get("reported"), dict):
@@ -406,6 +417,15 @@ class DaedalusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     else:
                         if flat:
                             cloud_data[key] = flat
+                            if name == "MachineStatus":
+                                timestamps = {
+                                    field: timestamp
+                                    for field in HOT_CARAFE_RINSE_EVIDENCE_FIELDS
+                                    if field in flat
+                                    and (timestamp := reported_field_timestamp(document, field)) is not None
+                                }
+                                if timestamps:
+                                    cloud_data["status_reported_at"] = timestamps
             if "status_flat" not in cloud_data:
                 status_error = cloud_state.status_error or "MachineStatus shadow has no usable reported data"
                 if "capabilities_flat" not in cloud_data:
@@ -449,8 +469,9 @@ class DaedalusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if key in previous:
                     cloud_data[key] = previous[key]
         if previous and previous.get("machine_name") == thing:
-            if "brewing_statistics" in previous:
-                cloud_data["brewing_statistics"] = previous["brewing_statistics"]
+            for key in _BREWING_STATISTICS_PROJECTIONS:
+                if key in previous:
+                    cloud_data[key] = previous[key]
             if self.entry.data.get(CONF_DRINK_VISIBILITY) and "visible_drinks_count" in previous:
                 cloud_data["visible_drinks_count"] = previous["visible_drinks_count"]
         self._cloud_data = cloud_data
@@ -473,19 +494,21 @@ class DaedalusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._async_update_machine_settings(thing, jwt, self._cloud_data, credentials[1:])
 
     async def _async_update_brewing_statistics(self, thing: str, jwt: str, cloud_data: dict[str, Any]) -> None:
-        counters: dict[str, int] = {}
+        statistics = BrewingStatistics()
         try:
             async with asyncio.timeout(BREWING_STATISTICS_FETCH_TIMEOUT_SECONDS):
-                counters = await fetch_brewing_statistics(self._api.http_session, thing_name=thing, jwt=jwt)
+                statistics = await fetch_brewing_statistics_snapshot(self._api.http_session, thing_name=thing, jwt=jwt)
         except Exception as exc:  # noqa: BLE001 — optional shadow, separate from cloud health
             _LOGGER.debug("Daedalus cloud: brewing statistics unavailable (%s)", type(exc).__name__)
 
         if self._cloud_data is not cloud_data:
             return  # The original snapshot expired while statistics were pending.
-        interval = BREWING_STATISTICS_POLL_SECONDS if counters else BREWING_STATISTICS_RETRY_SECONDS
+        projections = {key: getattr(statistics, field) for key, field in _BREWING_STATISTICS_PROJECTIONS.items()}
+        interval = BREWING_STATISTICS_POLL_SECONDS if any(projections.values()) else BREWING_STATISTICS_RETRY_SECONDS
         self._brewing_statistics_due_at = time.monotonic() + interval
-        if counters != cloud_data.get("brewing_statistics", {}):
-            self._cloud_data = {**cloud_data, "brewing_statistics": counters}
+        updates = {key: value for key, value in projections.items() if value != cloud_data.get(key, {})}
+        if updates:
+            self._cloud_data = {**cloud_data, **updates}
             self._publish_snapshot()
 
     async def _async_update_drink_visibility(self, thing: str, jwt: str, cloud_data: dict[str, Any]) -> None:

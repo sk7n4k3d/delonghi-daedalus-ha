@@ -181,6 +181,12 @@
       "cloud_clean_hot": {
         "name": "Ciclu de curățare la cald"
       },
+      "cloud_hot_carafe_clean_selector": {
+        "name": "Selector CLEAN al carafei pentru lapte cald"
+      },
+      "hot_milk_carafe_rinse_in_progress": {
+        "name": "Clătirea carafei pentru lapte cald în curs"
+      },
       "cloud_idf_cold": {
         "name": "Carafă pentru lapte rece (IDF)"
       },
@@ -231,6 +237,42 @@
       "brew_count": {
         "name": "Număr de preparări"
       },
+      "hot_brew_count": {
+        "name": "Număr de preparări calde"
+      },
+      "cold_brew_count": {
+        "name": "Număr de preparări reci"
+      },
+      "recipe_brew_count": {
+        "name": "Număr de preparări pentru rețeta {recipe_id}"
+      },
+      "recipe_espresso_brew_count": {
+        "name": "Număr de preparări de espresso"
+      },
+      "recipe_cappuccino_mix_brew_count": {
+        "name": "Număr de preparări de Cappuccino Mix"
+      },
+      "recipe_cappuccino_brew_count": {
+        "name": "Număr de preparări de cappuccino"
+      },
+      "recipe_latte_macchiato_brew_count": {
+        "name": "Număr de preparări de Latte Macchiato"
+      },
+      "recipe_cafe_con_leche_brew_count": {
+        "name": "Număr de preparări de Café con Leche"
+      },
+      "recipe_mild_filter_brew_count": {
+        "name": "Număr de preparări de Mild Filter"
+      },
+      "recipe_caffe_crema_brew_count": {
+        "name": "Număr de preparări de Caffè Crema"
+      },
+      "recipe_black_eye_brew_count": {
+        "name": "Număr de preparări de Black Eye"
+      },
+      "recipe_iced_latte_macchiato_brew_count": {
+        "name": "Număr de preparări de Latte Macchiato cu gheață"
+      },
       "stopped_brew_count": {
         "name": "Număr de preparări oprite"
       },
@@ -239,6 +281,9 @@
       },
       "brewing_error_count": {
         "name": "Număr de erori la preparare"
+      },
+      "brewing_hours": {
+        "name": "Intervale orare de preparare raportate"
       },
       "cloud_operating_state": {
         "name": "Starea aparatului"
