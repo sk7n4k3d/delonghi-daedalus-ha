@@ -74,6 +74,8 @@ CONF_FAVORITE_DRINK: Final = "favorite_drink"
 CONF_AROMATIC_WARMUP: Final = "aromatic_warmup"
 CONF_AROMATIC_WARMUP_PENDING: Final = "aromatic_warmup_pending"
 
+HOT_CARAFE_RINSE_EVIDENCE_FIELDS: Final = ("Status", "CurrMode", "accessories.CleanHot")
+
 DEFAULT_UPDATE_INTERVAL_SECONDS: Final = 30
 # Cloud shadows change slowly and every fetch is a full MQTT session;
 # 120 s matches the cadence mimasek71 validated on the Eletta Ultra.
@@ -112,6 +114,20 @@ BREWING_STATISTICS_KEYS: Final = {
     "Brew": "brew_count",
     "Stopped": "stopped_brew_count",
     "InError": "brewing_error_count",
+}
+BREWING_TIME_OF_DAY_KEYS: Final = (
+    "Time0_2",
+    "Time3_5",
+    "Time6_8",
+    "Time9_11",
+    "Time12_14",
+    "Time15_17",
+    "Time18_20",
+    "Time21_23",
+)
+BREWING_CLUSTER_KEYS: Final = {
+    "HOT": "hot_brew_count",
+    "COLD": "cold_brew_count",
 }
 
 # Visibility changes independently of operating status.
