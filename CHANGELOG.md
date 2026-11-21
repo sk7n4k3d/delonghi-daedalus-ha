@@ -4,6 +4,24 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
+## [0.5.1]
+
+- Métadonnées uniquement : la documentation et le suivi des tickets du manifest
+  pointent désormais sur ce dépôt, conformément à l'entrée du catalogue HACS.
+
+## [0.5.2]
+
+- **Eletta Ultra `ECAM47070` reconnue.** Les machines qui déclarent ce code après
+  **Reconfigurer** portaient le libellé générique `Recipe N brew count` alors que la
+  plaque indique ECAM470.75.TXB ; les compteurs boivent maintenant le nom vérifié de
+  chaque recette, dont le **Mild Filter** (recette 32).
+- **PrimaDonna Aromatic : compteurs par boisson et rinçage de la carafe à lait.**
+  Les préparations sont comptées une par une et l'activité de rinçage de la carafe
+  est exposée. La propriété `is_on` fusionnée a été rejouée sur 12 scénarios, tous
+  conformes à la table documentée.
+- La documentation des recettes vérifiées est regroupée dans un seul tableau,
+  par machine, pour ne plus pouvoir diverger.
+
 ## [0.5.0]
 
 - Sélectionnez votre machine lors de l'installation. Confirmez son adresse LAN et
