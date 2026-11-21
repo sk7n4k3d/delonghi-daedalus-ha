@@ -4,22 +4,30 @@ Packaging mirror of `custom_components/delonghi_daedalus/` from
 [`delonghi-ha`](https://github.com/sk7n4k3d/delonghi-ha). Full history lives
 upstream; the Daedalus entries are reproduced here for HACS.
 
-## [0.5.2]
+## [Unreleased]
 
-- Avec la télémétrie cloud activée, les machines compatibles peuvent exposer
-  leurs nombres de préparations par tranche de trois heures. Le capteur
-  **Tranches horaires de préparation signalées** est désactivé par défaut.
-  [Guide d'activation et carte de tableau de bord](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-brewing-hours.md)
-- Avec la télémétrie cloud activée, les machines compatibles exposent des
-  compteurs par recette et des totaux de préparations chaudes et froides.
-  Les capteurs par recette sont désactivés par défaut. Les noms vérifiés
-  des recettes s'affichent lorsque l'Eletta Ultra ECAM470.75.TXB est reconnue.
-  [Guide des compteurs par boisson](https://github.com/sk7n4k3d/delonghi-ha/blob/master/docs/daedalus-drink-statistics.md)
+- Ajout dans le README de liens vers les guides pour afficher les préparations
+  par tranche horaire, les compteurs par recette et les totaux des boissons
+  chaudes et froides. Ces entités sont disponibles depuis la version 0.5.2 sur les
+  machines qui publient les statistiques correspondantes.
 
 ## [0.5.1]
 
-- Les liens de documentation et de signalement de problèmes du manifeste
-  pointent vers le dépôt de distribution, conformément à la revue HACS.
+- Métadonnées uniquement : la documentation et le suivi des tickets du manifest
+  pointent désormais sur ce dépôt, conformément à l'entrée du catalogue HACS.
+
+## [0.5.2]
+
+- **Eletta Ultra `ECAM47070` reconnue.** Les machines qui déclarent ce code après
+  **Reconfigurer** portaient le libellé générique `Recipe N brew count` alors que la
+  plaque indique ECAM470.75.TXB ; les compteurs boivent maintenant le nom vérifié de
+  chaque recette, dont le **Mild Filter** (recette 32).
+- **PrimaDonna Aromatic : compteurs par boisson et rinçage de la carafe à lait.**
+  Les préparations sont comptées une par une et l'activité de rinçage de la carafe
+  est exposée. La propriété `is_on` fusionnée a été rejouée sur 12 scénarios, tous
+  conformes à la table documentée.
+- La documentation des recettes vérifiées est regroupée dans un seul tableau,
+  par machine, pour ne plus pouvoir diverger.
 
 ## [0.5.0]
 

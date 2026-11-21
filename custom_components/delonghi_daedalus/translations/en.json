@@ -181,6 +181,12 @@
       "cloud_clean_hot": {
         "name": "Hot cleaning cycle"
       },
+      "cloud_hot_carafe_clean_selector": {
+        "name": "Hot milk carafe CLEAN selector"
+      },
+      "hot_milk_carafe_rinse_in_progress": {
+        "name": "Hot milk carafe rinse in progress"
+      },
       "cloud_idf_cold": {
         "name": "Cold milk carafe (IDF)"
       },
@@ -240,6 +246,12 @@
       "recipe_brew_count": {
         "name": "Recipe {recipe_id} brew count"
       },
+      "recipe_espresso_brew_count": {
+        "name": "Espresso brew count"
+      },
+      "recipe_cappuccino_mix_brew_count": {
+        "name": "Cappuccino Mix brew count"
+      },
       "recipe_cappuccino_brew_count": {
         "name": "Cappuccino brew count"
       },
@@ -248,6 +260,9 @@
       },
       "recipe_cafe_con_leche_brew_count": {
         "name": "Café con Leche brew count"
+      },
+      "recipe_mild_filter_brew_count": {
+        "name": "Mild Filter brew count"
       },
       "recipe_caffe_crema_brew_count": {
         "name": "Caffè Crema brew count"
