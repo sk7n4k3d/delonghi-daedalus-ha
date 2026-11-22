@@ -27,6 +27,16 @@ This integration is the **Daedalus stack** counterpart to
 
 The integration requires **Home Assistant 2024.11.0 or later**.
 
+### HACS — recommended
+
+This integration is listed in HACS' **default** repository, so there is no custom
+repository to add:
+
+1. In HACS → **Integrations** → **Explore & add repositories**.
+2. Search for **De'Longhi My Coffee Lounge (Daedalus)** and download it.
+3. Restart Home Assistant, then go to **Settings → Devices & Services → Add
+   Integration** and select **De'Longhi My Coffee Lounge**.
+
 ### Home Assistant 2026.11 and later
 
 1. Go to **Settings → Marketplace → Add from link**.
@@ -34,7 +44,10 @@ The integration requires **Home Assistant 2024.11.0 or later**.
 3. Open **De'Longhi My Coffee Lounge (Daedalus)** and install the latest stable release.
 4. Open setup from Marketplace. Restart Home Assistant after an upgrade.
 
-### Home Assistant 2024.11 through 2026.10 with HACS
+### Home Assistant 2024.11 through 2026.10 — custom repository (fallback)
+
+Only needed if the integration does not show up in **Explore & add repositories**
+yet (newly listed repositories can take a few hours to propagate).
 
 1. In HACS → **Integrations** → ⋮ → **Custom repositories**
 2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as an **Integration** custom repository.
