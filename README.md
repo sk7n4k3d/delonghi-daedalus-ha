@@ -25,37 +25,49 @@ This integration is the **Daedalus stack** counterpart to
 
 ## Installation
 
-The integration requires **Home Assistant 2024.11.0 or later**.
+The integration requires **Home Assistant 2024.11.0 or later**. It is in the
+default catalog shared by HACS and Home Assistant's built-in Marketplace.
 
-### HACS — recommended
+### Home Assistant 2026.11 and later — Marketplace
 
-This integration is listed in HACS' **default** repository, so there is no custom
-repository to add:
+[![Open Daedalus in Marketplace][marketplace-badge]][marketplace-repository]
 
-1. In HACS → **Integrations** → **Explore & add repositories**.
-2. Search for **De'Longhi My Coffee Lounge (Daedalus)** and download it.
-3. Restart Home Assistant, then go to **Settings → Devices & Services → Add
-   Integration** and select **De'Longhi My Coffee Lounge**.
+1. Open **Settings → Marketplace** and search for **De'Longhi My Coffee Lounge
+   (Daedalus)**, or use the button above to open the repository directly.
+2. Select **Install** and follow the setup prompt. If you close setup, go to
+   **Settings → Devices & services → Add integration** and select **De'Longhi My
+   Coffee Lounge**.
+3. Restart Home Assistant after an upgrade.
 
-### Home Assistant 2026.11 and later
+### Home Assistant 2024.11 through 2026.10 — HACS
 
-1. Go to **Settings → Marketplace → Add from link**.
-2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha`. Connect a GitHub account if Marketplace prompts you to do so.
-3. Open **De'Longhi My Coffee Lounge (Daedalus)** and install the latest stable release.
-4. Open setup from Marketplace. Restart Home Assistant after an upgrade.
+[Open Daedalus in HACS][hacs-repository]
 
-### Home Assistant 2024.11 through 2026.10 — custom repository (fallback)
+1. Open **HACS** in the sidebar and search for
+   **De'Longhi My Coffee Lounge (Daedalus)**, or use the link above.
+2. Download the latest stable release, then restart Home Assistant.
+3. Go to **Settings → Devices & services → Add integration** and select
+   **De'Longhi My Coffee Lounge**.
 
-Only needed if the integration does not show up in **Explore & add repositories**
-yet (newly listed repositories can take a few hours to propagate).
+### Custom repository or manual installation
 
-1. In HACS → **Integrations** → ⋮ → **Custom repositories**
-2. Add `https://github.com/sk7n4k3d/delonghi-daedalus-ha` as an **Integration** custom repository.
-3. Download the latest stable release of **De'Longhi My Coffee Lounge (Daedalus)**.
-4. Restart Home Assistant.
-5. Go to **Settings → Devices & Services → Add Integration** and select **De'Longhi My Coffee Lounge**.
+If your catalog does not show the integration, add
+`https://github.com/sk7n4k3d/delonghi-daedalus-ha` via
+**Settings → Marketplace → Add from link** or **HACS → ⋮ → Custom repositories**,
+depending on your Home Assistant version. Choose **Integration** if asked. If
+prompted, connect your GitHub account. Then follow the install and setup steps
+above.
 
-If you install manually, download `delonghi_daedalus.zip` from the [mirror releases](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases). Extract it into `custom_components/delonghi_daedalus` so that `manifest.json` is directly inside that folder. On a manual upgrade, replace that component folder with a clean extraction and restart Home Assistant.
+To install manually, download `delonghi_daedalus.zip` from the [mirror releases](https://github.com/sk7n4k3d/delonghi-daedalus-ha/releases).
+Extract it into `custom_components/delonghi_daedalus` so that `manifest.json` is
+directly inside that folder. Restart Home Assistant and add **De'Longhi My Coffee
+Lounge** under **Settings → Devices & services → Add integration**. On a manual
+upgrade, replace the component folder with a clean extraction and restart Home
+Assistant.
+
+[marketplace-badge]: https://my.home-assistant.io/badges/marketplace_repository.svg
+[marketplace-repository]: https://my.home-assistant.io/redirect/marketplace_repository/?owner=sk7n4k3d&repository=delonghi-daedalus-ha&category=integration
+[hacs-repository]: https://my.home-assistant.io/redirect/hacs_repository/?owner=sk7n4k3d&repository=delonghi-daedalus-ha&category=integration
 
 ## Configuration
 
